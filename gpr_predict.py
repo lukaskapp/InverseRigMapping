@@ -7,7 +7,7 @@ import csv
 from importlib import reload
 import pathlib
 import os
-import modelist_gpr as gpr
+import modelList_gpr as gpr
 reload(gpr)
 
 
