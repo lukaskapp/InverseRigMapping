@@ -30,20 +30,36 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
     jnt_dataset = pd.read_csv(jnt_file, na_values='?', comment='\t', sep=',', skipinitialspace=True, header=[0])
 
     # get number of objs in first column and mult it with len of data entries
+    # tensor = all values of all jnts on one frame/entry
     train_x_dimension =  len(np.unique(jnt_dataset.iloc[:, :1])) * len(jnt_dataset.iloc[:, 2:].values[0])
     train_x = torch.from_numpy(np.array(jnt_dataset.iloc[:, 2:]).reshape(-1, train_x_dimension)).float()
     train_x = train_x.to(device)
     train_x_trans = train_x[:, :3]
     train_x_rot = train_x[:, 3:]
 
-    x_trans_means = train_x_trans.mean(1, keepdim=True)
-    x_trans_deviations = train_x_trans.std(1, keepdim=True)
+    #x_trans_means = train_x_trans.mean(1, keepdim=True)
+    #x_trans_deviations = train_x_trans.std(1, keepdim=True)
     #train_x_trans_norm = (train_x_trans - x_trans_means) / x_trans_deviations
     #train_x_trans_norm = torch.nn.functional.normalize(train_x_trans)
-    train_x_trans_norm = (train_x_trans - train_x_trans.min()) / (train_x_trans.max() - train_x_trans.min())
-    train_x_rot_norm = (train_x_rot - train_x_rot.min()) / (train_x_rot.max() - train_x_rot.min())
+    #train_x_trans_norm = (train_x_trans - train_x_trans.min()) / (train_x_trans.max() - train_x_trans.min())
 
-    train_x_norm = torch.cat((train_x_trans_norm, train_x_rot_norm), 1)
+    #x_rot_means = train_x_rot.mean(0, keepdim=True)
+    #x_rot_deviations = train_x_rot.std(0, keepdim=True)
+    #train_x_rot_norm = (train_x_rot - x_rot_means) / x_rot_deviations
+    #train_x_rot_norm = torch.nn.functional.normalize(train_x_rot)
+    #train_x_rot_norm = (train_x_rot - train_x_rot.min()) / (train_x_rot.max() - train_x_rot.min())
+
+    # normalize inputs to range -1.0 1.0
+    new_min, new_max = -1.0, 1.0
+
+    x_trans_min, x_trans_max = train_x_trans.min(), train_x_trans.max()
+    train_x_trans_norm = (train_x_trans - x_trans_min) / (x_trans_max - x_trans_min) * (new_max - new_min) + new_min
+        
+    #x_rot_min, x_rot_max = train_x_rot.min(), train_x_rot.max()
+    #train_x_rot_norm = (train_x_rot - x_rot_min) / (x_rot_max - x_rot_min) * (new_max - new_min) + new_min
+        
+
+    train_x_norm = torch.cat((train_x_trans_norm, train_x_rot), 1)
 
     # get number of objs in first column and mult it with dimension of data
     train_y_dimension = rig_dataset.filter(items=["dimension"]).values[0][0] * len(np.unique(rig_dataset.iloc[:, :1]))
@@ -96,9 +112,9 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
     likelihood.train()
 
     # Use the Adam optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)  # lr = learning rate
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.05)  # lr = learning rate
 
-    training_iterations = 250
+    training_iterations = 100
     for i in range(training_iterations):
         optimizer.zero_grad()
         output = model(*model.train_inputs)
@@ -122,7 +138,7 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
 
         # Make predictions
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
-            test_x = torch.linspace(train_x.min().cpu(), train_x.max().cpu(), 100)
+            test_x = torch.linspace(train_x_norm.min().cpu(), train_x_norm.max().cpu(), 100)
             test_x = test_x.to(device)
             test_x_tensor = [test_x for i in range(train_y_dimension)]
             predictions = likelihood(*model(*test_x_tensor))
@@ -139,16 +155,16 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
             ax.plot(test_x.detach().cpu().numpy(), mean.detach().cpu().numpy(), 'b')
             # Shade in confidence
             ax.fill_between(test_x.detach().cpu().numpy(), lower.detach().cpu().numpy(), upper.detach().cpu().numpy(), alpha=0.5)
-            ax.set_ylim([min_y, max_y])
+            ax.set_ylim([min_y.detach().numpy(), max_y.detach().numpy()])
             ax.legend(['Observed Data', 'Mean', 'Confidence'])
             ax.set_title(title)
 
         # Plot both tasks
         for submodel, prediction, ax in zip(model.models[:num_of_plots], predictions[:num_of_plots], axs[:num_of_plots]):
-            ax_plot(ax, submodel.train_targets, submodel.train_inputs[0], prediction, 'Observed Values (Likelihood)', prediction.confidence_region()[0].min().cpu()*1.1,prediction.confidence_region()[1].max().cpu()*1.1)
+            ax_plot(ax, submodel.train_targets, submodel.train_inputs[0], prediction, 'Observed Values (Likelihood)', prediction.confidence_region()[0].min().cpu()*1.5,prediction.confidence_region()[1].max().cpu()*1.5)
 
 
-    return likelihood, model
+    return likelihood, model, x_trans_min, x_trans_max
 
 
 

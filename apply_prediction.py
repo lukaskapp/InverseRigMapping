@@ -61,20 +61,20 @@ def map_data():
                 ctrl = values_list[n][i][1]
                 cmds.currentTime(frame)
                 for x, attr in enumerate(header[2:5]):
+                    print("SET:  ", "{}.{}".format(ctrl, attr), float(values_list[n][i][2+x]))
                     cmds.setAttr("{}.{}".format(ctrl, attr), float(values_list[n][i][2+x]))
                     cmds.setKeyframe(ctrl, t=frame, at=attr, v=float(values_list[n][i][2+x]))
+
+                offset = 5
+                mtx = pm.dt.TransformationMatrix((float(values_list[n][i][offset+0]), float(values_list[n][i][offset+1]), float(values_list[n][i][offset+2]), 0.0,
+                                                float(values_list[n][i][offset+3]), float(values_list[n][i][offset+4]), float(values_list[n][i][offset+5]), 0.0,
+                                                float(values_list[n][i][offset+6]), float(values_list[n][i][offset+7]), float(values_list[n][i][offset+8]), 0.0,
+                                                0.0, 0.0, 0.0, 1.0)).euler
+                rot = [math.degrees(mtx[0]), math.degrees(mtx[1]), math.degrees(mtx[2])]
                 
-                mtx = pm.dt.TransformationMatrix((float(values_list[n][i][5+0]), float(values_list[n][i][5+1]), float(values_list[n][i][5+2]), 0.0,
-                                    float(values_list[n][i][5+3]), float(values_list[n][i][5+4]), float(values_list[n][i][5+5]), 0.0,
-                                    float(values_list[n][i][5+6]), float(values_list[n][i][5+7]), float(values_list[n][i][5+8]), 0.0,
-                                    0.0, 0.0, 0.0, 1.0)).euler
-                mtx = [math.degrees(mtx[0]), math.degrees(mtx[1]), math.degrees(mtx[2])]
-                print(mtx)
-
-
                 for attr in ["rx", "ry", "rz"]:
-                    #cmds.xform(ctrl, m=mtx, os=1)
-                    cmds.xform(ctrl, ro=mtx, os=1)
+                    cmds.xform(ctrl, ro=rot, os=1)
+                    #cmds.xform(ctrl, m=mtx.__melobject__(), os=1) # will override translation values due to 0 values in mtx
                     value = cmds.getAttr("{}.{}".format(ctrl, attr))
                     cmds.setKeyframe(ctrl, t=frame, at=attr, v=float(value))
 

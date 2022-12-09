@@ -21,7 +21,7 @@ device = torch.device(dev)
 #anim_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "anim_data_01.csv")
 
 def predict_data(anim_path):
-    likelihood, model = gpr.gpr()
+    likelihood, model, x_trans_min, x_trans_max = gpr.gpr()
     likelihood.to(device)
     model.to(device)
 
@@ -31,32 +31,36 @@ def predict_data(anim_path):
     # get number of objs in first column and mult it with len of data entries
     anim_x_depth =  len(np.unique(anim_dataset.iloc[:, :1]))
     mean_depth = len(anim_dataset.iloc[:, 2:].values[0])
-    anim_predict_x = torch.from_numpy(np.array(anim_dataset.iloc[:, 2:]).reshape(anim_x_depth, -1)).float()
-    anim_predict_x = anim_predict_x.to(device)
+    anim_x = torch.from_numpy(np.array(anim_dataset.iloc[:, 2:]).reshape(-1, mean_depth)).float()
+    anim_x = anim_x.to(device)
 
-    anim_predict_x_trans = anim_predict_x[:, :3]
-    anim_predict_x_rot = anim_predict_x[:, 3:]
+    anim_x_trans = anim_x[:, :3]
+    anim_x_rot = anim_x[:, 3:]
 
-    x_trans_means = anim_predict_x_trans.mean(1, keepdim=True)
-    x_trans_deviations = anim_predict_x_trans.std(1, keepdim=True)
-    #anim_predict_x_trans_norm = (anim_predict_x_trans - x_trans_means) / x_trans_deviations
-    #anim_predict_x_trans_norm = torch.nn.functional.normalize(anim_predict_x_trans)
-    if (anim_predict_x_trans.max() - anim_predict_x_trans.min()) == 0:
-        anim_predict_x_trans_norm = anim_predict_x_trans
-    else:
-        anim_predict_x_trans_norm = (anim_predict_x_trans - anim_predict_x_trans.min()) / (anim_predict_x_trans.max() - anim_predict_x_trans.min())
-    anim_predict_x_rot_norm = (anim_predict_x_rot - anim_predict_x_rot.min()) / (anim_predict_x_rot.max() - anim_predict_x_rot.min())
+    # normalize data to range -1.0 1.0
+    new_min, new_max = -1.0, 1.0
 
-    anim_predict_x_norm = torch.cat((anim_predict_x_trans_norm, anim_predict_x_rot_norm), 1)
+    #x_trans_min, x_trans_max = -40.0, 40.0
+    anim_x_trans_norm = (anim_x_trans - x_trans_min) / (x_trans_max - x_trans_min) * (new_max - new_min) + new_min
 
-    predict_y = likelihood(*model(*anim_predict_x_norm))
+    #x_rot_min, x_rot_max = anim_x_rot.min(), anim_x_rot.max()
+    #anim_x_rot_norm = (anim_x_rot - x_rot_min) / (x_rot_max - x_rot_min) * (new_max - new_min) + new_min
+
+
+    anim_x_norm = torch.cat((anim_x_trans_norm, anim_x_rot), -1).reshape(anim_x_depth, -1)
+
+    #anim_x_norm = torch.rand(3, 12)
+    #anim_x_norm = anim_x_norm.to(device)
+    new_anim_x = torch.from_numpy(np.array(anim_dataset.iloc[:, 2:]).reshape(1, -1)).float()
+    new_anim_x = new_anim_x.to(device)
+
+    predict_y = likelihood(*model(*new_anim_x))
     predict_mean = []
     for predict in predict_y:
         mean = predict.mean.reshape(-1, mean_depth)
         mean.to(device)
         predict_mean.append(mean)
 
-    #predict_mean = torch.stack([predict_y[0].mean.reshape(-1, anim_x_depth), predict_y[1].mean.reshape(-1, anim_x_depth), predict_y[2].mean.reshape(-1, anim_x_depth)])
 
     predict_dataset = anim_dataset.copy()
     for i, obj in enumerate(predict_mean):
@@ -64,7 +68,6 @@ def predict_data(anim_path):
             for column, attr in enumerate(transforms):
                 rigName = predict_dataset[predict_dataset.columns.values[1]][row+ (len(obj)*i)]
                 predict_dataset.at[row+ (len(obj)*i), predict_dataset.columns.values[1]] = rigName.replace("_anim_bind", "_ctrl")
-
                 predict_dataset.at[row+ (len(obj)*i), predict_dataset.columns.values[column+2]] = attr.detach().cpu().numpy()
 
 
@@ -76,5 +79,5 @@ def predict_data(anim_path):
     predict_dataset.to_csv(predict_path, header=header, index=False)
 
 
-if __name__=="__main__":
-    predict_data(anim_path=pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "anim_data_01.csv"))
+#if __name__=="__main__":
+#    predict_data(anim_path=pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "anim_data_01.csv"))

@@ -31,27 +31,22 @@ def prep_data():
     for i, jnt in enumerate(jnt_list):
         for frame in frames:
             cmds.currentTime(frame)
-            jnt_pos = [round(float(pos), 4) for pos in cmds.xform(jnt, q=1, t=1, os=1)]
-            #jnt_rot = [round(float(rot), 4) for rot in pm.dt.EulerRotation(cmds.xform(jnt, q=1, ro=1, ws=1)).asQuaternion()]
-            jnt_rot = [round(float(pos), 4) for pos in cmds.xform(jnt, q=1, ro=1, os=1)]
-            jnt_mtx = pm.dt.TransformationMatrix(cmds.xform(jnt, m=1, q=1, os=1)).asRotateMatrix()[:-1]
-            jnt_mtx3 = [x for mtx in jnt_mtx for x in mtx[:-1]]
-            #jnt_scale = [round(float(scale), 4) for scale in cmds.xform(jnt, q=1, s=1, ws=1)]
+            jnt_mtx = pm.dt.TransformationMatrix(cmds.xform(jnt, m=1, q=1, os=1))
+            jnt_rot_mtx3 = [x for mtx in jnt_mtx.asRotateMatrix()[:-1] for x in mtx[:-1]]
+            jnt_trans = jnt_mtx.getTranslation("object")
+
             jnt_data = [i, jnt]
-            jnt_data.extend(jnt_pos)
-            jnt_data.extend(jnt_mtx3)
+            jnt_data.extend(jnt_trans)
+            jnt_data.extend(jnt_rot_mtx3)
             #jnt_data.extend(jnt_scale)
             anim_data.append(jnt_data)
     
     cmds.currentTime(current_frame)
     print("FRAMES: ", frames)
-    #header = ["No.", "JointName", "translateX", "translateY", "translateZ", "rotateX", "rotateY", "rotateZ", "scaleX", "scaleY", "scaleZ"]
-    #header = ["No.", "JointName", "translateX", "translateY", "translateZ", "rotateX", "rotateY", "rotateZ"]
     header = ["No.", "jointName", "translateX", "translateY", "translateZ",
                                     "rotate_00", "rotate_01", "rotate_02",
                                     "rotate_10", "rotate_11", "rotate_12",
                                     "rotate_20", "rotate_21", "rotate_22"]
-
 
 
 
