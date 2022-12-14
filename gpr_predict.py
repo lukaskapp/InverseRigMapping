@@ -7,7 +7,8 @@ import csv
 from importlib import reload
 import pathlib
 import os
-import modelList_gpr as gpr
+#import modelList_gpr as gpr
+import multiTask_gpr as gpr
 reload(gpr)
 
 
@@ -47,28 +48,28 @@ def predict_data(anim_path):
     #anim_x_rot_norm = (anim_x_rot - x_rot_min) / (x_rot_max - x_rot_min) * (new_max - new_min) + new_min
 
 
-    anim_x_norm = torch.cat((anim_x_trans_norm, anim_x_rot), -1).reshape(anim_x_depth, -1)
+    anim_x_norm = torch.cat((anim_x_trans_norm, anim_x_rot), -1).reshape(-1, mean_depth)
+    #anim_x_norm = anim_x
 
-    #anim_x_norm = torch.rand(3, 12)
-    #anim_x_norm = anim_x_norm.to(device)
-    new_anim_x = torch.from_numpy(np.array(anim_dataset.iloc[:, 2:]).reshape(1, -1)).float()
-    new_anim_x = new_anim_x.to(device)
 
-    predict_y = likelihood(*model(*new_anim_x))
-    predict_mean = []
-    for predict in predict_y:
-        mean = predict.mean.reshape(-1, mean_depth)
-        mean.to(device)
-        predict_mean.append(mean)
+
+    predict_y = likelihood(model(anim_x_norm))
+    predict_mean = predict_y.mean
+    #predict_mean = []
+    #for predict in predict_y:
+    #    mean = predict.mean.reshape(-1, mean_depth)
+    #    mean.to(device)
+    #    predict_mean.append(mean)
 
 
     predict_dataset = anim_dataset.copy()
-    for i, obj in enumerate(predict_mean):
-        for row, transforms in enumerate(obj):
-            for column, attr in enumerate(transforms):
-                rigName = predict_dataset[predict_dataset.columns.values[1]][row+ (len(obj)*i)]
-                predict_dataset.at[row+ (len(obj)*i), predict_dataset.columns.values[1]] = rigName.replace("_anim_bind", "_ctrl")
-                predict_dataset.at[row+ (len(obj)*i), predict_dataset.columns.values[column+2]] = attr.detach().cpu().numpy()
+    #for i, obj in enumerate(predict_mean):
+    i = 0
+    for row, transforms in enumerate(predict_mean):
+        for column, attr in enumerate(transforms):
+            rigName = predict_dataset[predict_dataset.columns.values[1]][row+ (len(predict_mean)*i)]
+            predict_dataset.at[row+ (len(predict_mean)*i), predict_dataset.columns.values[1]] = rigName.replace("_anim_bind", "_ctrl")
+            predict_dataset.at[row+ (len(predict_mean)*i), predict_dataset.columns.values[column+2]] = attr.detach().cpu().numpy()
 
 
     # save anim data for Maya
