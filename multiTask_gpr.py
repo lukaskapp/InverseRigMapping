@@ -123,7 +123,7 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
     likelihood.eval()
 
     if plots:
-        num_of_plots = 5
+        num_of_plots = 3
         # Initialize plots
         f, axs = plt.subplots(num_of_plots, 1, figsize=(7.5, 5*num_of_plots))
 
@@ -150,7 +150,7 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
 
         # Plot both tasks
         for i in range(num_of_plots):
-            ax_plot(axs[i], i, train_y[:, i], train_x_rot[:, i], predictions, 'Observed Values (Likelihood)', -1.5, 1.5)
+            ax_plot(axs[i], i, train_y[:, i], train_x_rot[:, i], predictions, 'Observed Values (Likelihood)', -50, 50)
         #ax_plot(axs[1], 1, train_y[:, 1], train_x[:, 0], predictions, 'Observed Values (Likelihood)', -40, 40)
         
         
@@ -158,5 +158,5 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
 
 
 
-if __name__ == "__main__":
-    gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv", anim_path=None, plots=True)
+#if __name__ == "__main__":
+#    gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv", anim_path=None, plots=True)

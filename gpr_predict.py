@@ -61,7 +61,7 @@ def predict_data(anim_path):
     #    mean.to(device)
     #    predict_mean.append(mean)
 
-
+    """
     predict_dataset = anim_dataset.copy()
     #for i, obj in enumerate(predict_mean):
     i = 0
@@ -70,15 +70,31 @@ def predict_data(anim_path):
             rigName = predict_dataset[predict_dataset.columns.values[1]][row+ (len(predict_mean)*i)]
             predict_dataset.at[row+ (len(predict_mean)*i), predict_dataset.columns.values[1]] = rigName.replace("_anim_bind", "_ctrl")
             predict_dataset.at[row+ (len(predict_mean)*i), predict_dataset.columns.values[column+2]] = attr.detach().cpu().numpy()
+    """
+
+
+
 
 
     # save anim data for Maya
     predict_name = "predict_cube_data.csv"
     predict_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "predict_data", predict_name)
 
-    header = predict_dataset.columns.values
-    predict_dataset.to_csv(predict_path, header=header, index=False)
+    #header = predict_dataset.columns.values
+    #predict_dataset.to_csv(predict_path, header=header, index=False)
 
+
+    predict_data = []
+    for translate in predict_mean:
+        predict_data.append([0, "irm_C_ik_ctrl", translate[0].cpu().detach().numpy(), translate[1].cpu().detach().numpy(), translate[2].cpu().detach().numpy()])
+
+
+    header = ["No.", "jointName", "translateX", "translateY", "translateZ"]
+
+    with open(predict_path, "w") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        writer.writerows(predict_data)
 
 #if __name__=="__main__":
 #    predict_data(anim_path=pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "anim_data_01.csv"))

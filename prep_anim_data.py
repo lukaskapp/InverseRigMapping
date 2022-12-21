@@ -36,18 +36,22 @@ def prep_data():
             jnt_trans = jnt_mtx.getTranslation("object")
 
             jnt_data = [i, jnt]
-            jnt_data.extend(jnt_trans)
+            #jnt_data.extend(jnt_trans)
             jnt_data.extend(jnt_rot_mtx3)
             #jnt_data.extend(jnt_scale)
             anim_data.append(jnt_data)
     
     cmds.currentTime(current_frame)
     print("FRAMES: ", frames)
-    header = ["No.", "jointName", "translateX", "translateY", "translateZ",
+    #header = ["No.", "jointName", "translateX", "translateY", "translateZ",
+    #                                "rotate_00", "rotate_01", "rotate_02",
+    #                                "rotate_10", "rotate_11", "rotate_12",
+    #                                "rotate_20", "rotate_21", "rotate_22"]
+
+    header = ["No.", "jointName",
                                     "rotate_00", "rotate_01", "rotate_02",
                                     "rotate_10", "rotate_11", "rotate_12",
                                     "rotate_20", "rotate_21", "rotate_22"]
-
 
 
     print("DATA: ", anim_data)

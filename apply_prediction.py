@@ -46,7 +46,11 @@ def map_data():
         reader = csv.reader(csvfile)
         header = next(reader, None) # skip header
         
-        predict_data = [row for row in reader]
+        predict_data = [row for row in reader if len(row) != 0]
+        print(predict_data)
+        for x in predict_data:
+            print(x)
+
         ctrl_depth = list(dict.fromkeys([int(n[0]) for n in predict_data]))
 
         values_list = []
@@ -56,8 +60,8 @@ def map_data():
         current_frame = cmds.currentTime(q=1)
         
         for i, frame in enumerate(frames):
-
             for n in ctrl_depth:                        
+                print(n)
                 ctrl = values_list[n][i][1]
                 cmds.currentTime(frame)
                 for x, attr in enumerate(header[2:5]):
@@ -65,6 +69,8 @@ def map_data():
                     cmds.setAttr("{}.{}".format(ctrl, attr), float(values_list[n][i][2+x]))
                     cmds.setKeyframe(ctrl, t=frame, at=attr, v=float(values_list[n][i][2+x]))
 
+                    
+                """
                 offset = 5
                 mtx = pm.dt.TransformationMatrix((float(values_list[n][i][offset+0]), float(values_list[n][i][offset+1]), float(values_list[n][i][offset+2]), 0.0,
                                                 float(values_list[n][i][offset+3]), float(values_list[n][i][offset+4]), float(values_list[n][i][offset+5]), 0.0,
@@ -82,7 +88,7 @@ def map_data():
                     cmds.setAttr("{}.shearXY".format(ctrl), 0.0)
                     cmds.setAttr("{}.shearXZ".format(ctrl), 0.0)
                     cmds.setAttr("{}.shearYZ".format(ctrl), 0.0)
-                
+                """
 
         cmds.currentTime(current_frame)
         
