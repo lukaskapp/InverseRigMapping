@@ -15,24 +15,13 @@ def prep_data():
         om.MGlobal.displayError("Nothing selected! Please select one control and one or more joints!")
         return
 
-    sel_ctrl = sel[0]
-    sel_jnt = sel[1]
+    # filter selection into joints and controls
+    ctrl_list = [ctrl for ctrl in cmds.ls(sl=1, typ="transform") if "_ctrl" in ctrl and not "_srtBuffer" in ctrl]
+    print(ctrl_list)
 
-    if cmds.listRelatives(sel_ctrl, ad=1, typ="transform"):
-        ctrl_list = [obj for obj in cmds.listRelatives(sel_ctrl, ad=1, typ="transform") if "_ctrl" in obj and not "_srtBuffer" in obj]
-        ctrl_list.append(sel_ctrl)
-        ctrl_list.reverse()
-        print(ctrl_list)
-    else:
-        ctrl_list = [sel_ctrl]
+    jnt_list = [jnt for jnt in cmds.ls(sl=1, typ="joint") if "_bind" in jnt and not "_end_bind" in jnt]
+    print(jnt_list)
 
-    if cmds.listRelatives(sel_ctrl, ad=1, typ="joint"):
-        jnt_list = [obj for obj in cmds.listRelatives(sel_jnt, ad=1, typ="joint") if "_bind" in obj and not "_end_bind" in obj]
-        jnt_list.append(sel_jnt)
-        jnt_list.reverse()
-        print(jnt_list)
-    else:
-        jnt_list = [sel_jnt]
 
     rig_data = []
     jnt_data = []
@@ -50,46 +39,37 @@ def prep_data():
             rz = round(random.uniform(-180,180), 5)
             ctrl_rot = [rx, ry, rz]
             
-
-
-            #sx = round(random.uniform(-45, 45), 4)
-            #sy = round(random.uniform(-45, 45), 4)
-            #sz = round(random.uniform(-45, 45), 4)
-            #ctrl_scale = [sx,sy,sz]
-
-            #cmds.xform(ctrl, t=ctrl_pos, ro=ctrl_rot, s=ctrl_scale, ws=1)
             cmds.xform(ctrl, t=ctrl_pos, os=1)
-            #cmds.xform(ctrl, ro=ctrl_rot, os=1)
+            cmds.xform(ctrl, ro=ctrl_rot, os=1)
 
 
             ctrl_mtx = pm.dt.TransformationMatrix(cmds.xform(ctrl, m=1, q=1, os=1))
             ctrl_rot_mtx3 = [x for mtx in ctrl_mtx.asRotateMatrix()[:-1] for x in mtx[:-1]]
             ctrl_trans = ctrl_mtx.getTranslation("object")
 
-            jnt = ctrl.replace("_ctrl", "_bind")
-            #jnt_rot = [round(rot, 3) for rot in cmds.xform(jnt, q=1, ro=1, os=1)]
+            rig_data_add = [x]
+            rig_data_add.extend([ctrl, 12, "translateX", ctrl_trans[0], "translateY", ctrl_trans[1], "translateZ", ctrl_trans[2],
+                                        "rotate_00", ctrl_rot_mtx3[0], "rotate_01", ctrl_rot_mtx3[1], "rotate_02", ctrl_rot_mtx3[2],
+                                        "rotate_10", ctrl_rot_mtx3[3], "rotate_11", ctrl_rot_mtx3[4], "rotate_12", ctrl_rot_mtx3[5],
+                                        "rotate_20", ctrl_rot_mtx3[6], "rotate_21", ctrl_rot_mtx3[7], "rotate_22", ctrl_rot_mtx3[8]])
+
+            #rig_data_add.extend([ctrl, 3, "translateX", ctrl_trans[0], "translateY", ctrl_trans[1], "translateZ", ctrl_trans[2]])   
+
+            rig_data.append(rig_data_add)
+
+
+        for y, jnt in enumerate(jnt_list):
+            jnt_rot = [round(rot, 3) for rot in cmds.xform(jnt, q=1, ro=1, os=1)]
 
             jnt_mtx = pm.dt.TransformationMatrix(cmds.xform(jnt, m=1, q=1, os=1))
             jnt_rot_mtx3 = [x for mtx in jnt_mtx.asRotateMatrix()[:-1] for x in mtx[:-1]]
             jnt_trans = jnt_mtx.getTranslation("object")
 
-            cmds.xform(ctrl, t=[0,0,0], ro=[0,0,0], s=[1,1,1], os=1)
-
             print("JNT POS: ", jnt_trans)
             print("JNT ROT: ", jnt_rot)
-            #print("JNT SCALE: ", jnt_scale)
 
-            rig_data_add = [x]
-            #rig_data_add.extend([ctrl, 12, "translateX", ctrl_trans[0], "translateY", ctrl_trans[1], "translateZ", ctrl_trans[2],
-            #                            "rotate_00", ctrl_rot_mtx3[0], "rotate_01", ctrl_rot_mtx3[1], "rotate_02", ctrl_rot_mtx3[2],
-            #                            "rotate_10", ctrl_rot_mtx3[3], "rotate_11", ctrl_rot_mtx3[4], "rotate_12", ctrl_rot_mtx3[5],
-            #                            "rotate_20", ctrl_rot_mtx3[6], "rotate_21", ctrl_rot_mtx3[7], "rotate_22", ctrl_rot_mtx3[8]])
-
-            rig_data_add.extend([ctrl, 3, "translateX", ctrl_trans[0], "translateY", ctrl_trans[1], "translateZ", ctrl_trans[2]])   
-
-            rig_data.append(rig_data_add)
             
-            jnt_data_add = [x]
+            jnt_data_add = [y]
             #jnt_data_add.extend([jnt, jnt_trans[0], jnt_trans[1], jnt_trans[2],
             #                                                    jnt_rot_mtx3[0], jnt_rot_mtx3[1], jnt_rot_mtx3[2],
             #                                                    jnt_rot_mtx3[3], jnt_rot_mtx3[4], jnt_rot_mtx3[5],
@@ -102,14 +82,19 @@ def prep_data():
 
             jnt_data.append(jnt_data_add)
 
-        
 
-    #rig_header = ["No.", "rigName", "dimension", "translateX", "translateX_value", "translateY", "translateY_value", "translateZ", "translateZ_value",
-    #                                    "rotate_00", "rotate_00_value", "rotate_01", "rotate_01_value", "rotate_02", "rotate_02_value",
-    #                                    "rotate_10", "rotate_10_value", "rotate_11", "rotate_11_value", "rotate_12", "rotate_12_value",
-    #                                    "rotate_20", "rotate_20_value", "rotate_21", "rotate_21_value", "rotate_22", "rotate_22_value"]
 
-    rig_header = ["No.", "rigName", "dimension", "translateX", "translateX_value", "translateY", "translateY_value", "translateZ", "translateZ_value"]
+    # reset transforms to zero
+    for ctrl in ctrl_list:
+        cmds.xform(ctrl, t=[0,0,0], ro=[0,0,0], s=[1,1,1], os=1)
+
+
+    rig_header = ["No.", "rigName", "dimension", "translateX", "translateX_value", "translateY", "translateY_value", "translateZ", "translateZ_value",
+                                        "rotate_00", "rotate_00_value", "rotate_01", "rotate_01_value", "rotate_02", "rotate_02_value",
+                                        "rotate_10", "rotate_10_value", "rotate_11", "rotate_11_value", "rotate_12", "rotate_12_value",
+                                        "rotate_20", "rotate_20_value", "rotate_21", "rotate_21_value", "rotate_22", "rotate_22_value"]
+
+    #rig_header = ["No.", "rigName", "dimension", "translateX", "translateX_value", "translateY", "translateY_value", "translateZ", "translateZ_value"]
 
 
     #jnt_header = ["No.", "jointName", "translateX", "translateY", "translateZ",

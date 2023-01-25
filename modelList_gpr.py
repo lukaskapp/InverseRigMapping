@@ -89,7 +89,7 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
     for i in range(train_y_dimension):
         likelihood = gpytorch.likelihoods.GaussianLikelihood()
         likelihood = likelihood.to(device)
-        model = ExactGPModel(train_x[:, i], train_y[:, i], likelihood)
+        model = ExactGPModel(train_x_norm[:, i], train_y[:, i], likelihood)
         model = model.to(device)
 
         likelihood_list.append(likelihood)
