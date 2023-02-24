@@ -8,54 +8,111 @@ import csv
 import pathlib
 
 
-def prep_data():
-    sel = cmds.ls(sl=1)
+def get_all_attributes(obj):
+    '''
+    return all attributes of obj if attribute is unlocked, keyable, scalar and not of type enum or bool
+    '''
+    return [attr for attr in cmds.listAttr(obj, unlocked=True, keyable=True, scalar=True) if not cmds.attributeQuery(attr, node=obj, at=1) in ["enum", "bool"]]
 
-    if len(sel) == 0:
+def restore_defaults(ctrl):
+    '''
+    set all attributes on obj to default values
+    '''
+    for attr in get_all_attributes(ctrl):
+        cmds.setAttr("{}.{}".format(ctrl, attr), cmds.attributeQuery(attr, node=ctrl, ld=1)[0])
+
+
+def check_source_connection(obj, attr):
+    connection = cmds.listConnections("{}.{}".format(obj, attr), s=1, d=0, p=1)
+    
+    # check if attr is part of a compound one and check the compound one as well for any connections
+    if not connection:
+        attr_parent = cmds.attributeQuery(attr, node=obj, lp=1)[0]
+        if attr_parent:
+            connection = cmds.listConnections("{}.{}".format(obj, attr_parent), s=1, d=0, p=1)
+        
+    return connection
+
+
+def prep_data():
+    if len(cmds.ls(sl=1)) == 0:
         om.MGlobal.displayError("Nothing selected! Please select one control and one or more joints!")
         return
 
     # filter selection into joints and controls
     ctrl_list = [ctrl for ctrl in cmds.ls(sl=1, typ="transform") if "_ctrl" in ctrl and not "_srtBuffer" in ctrl]
-    print(ctrl_list)
+    print("CTRL LIST: ", ctrl_list)
 
     jnt_list = [jnt for jnt in cmds.ls(sl=1, typ="joint") if "_bind" in jnt and not "_end_bind" in jnt]
-    print(jnt_list)
+    print("JNT LIST: ", jnt_list)
 
 
     rig_data = []
     jnt_data = []
+
+    for ctrl in ctrl_list:
+        restore_defaults(ctrl)
+
+    # filter  attributes that have incoming connections
+    # and store the default values for later use
+    jnt_defaults = {}
+    for jnt in jnt_list:
+        attr_defaults = {}
+        for attr in get_all_attributes(jnt):
+            if check_source_connection(jnt, attr):
+                attr_defaults[attr] = cmds.getAttr("{}.{}".format(jnt, attr))
+        jnt_defaults[jnt] = attr_defaults
+    print(jnt_defaults)
+
+
     for i in range(500):
         for x, ctrl in enumerate(ctrl_list):
-            random.seed(i+x)
-            tx = round(random.uniform(-50, 50), 5)
-            ty = round(random.uniform(-50, 50), 5)
-            tz = round(random.uniform(-50, 50), 5)
-            ctrl_pos = [tx,ty,tz]
-            print("CTRL POS: ", ctrl_pos)
-
-            rx = round(random.uniform(-180,180), 5)
-            ry = round(random.uniform(-180,180), 5)
-            rz = round(random.uniform(-180,180), 5)
-            ctrl_rot = [rx, ry, rz]
+            # only get integer and float attributes
+            attr_list = get_all_attributes(ctrl)
             
-            cmds.xform(ctrl, t=ctrl_pos, os=1)
-            cmds.xform(ctrl, ro=ctrl_rot, os=1)
+            # check if rotation is in attr list
+            rotation = [rot for rot in attr_list if "rotate" in attr]
+            rotation = True
+
+            # set dimension to length of attr_list; if rotate in list, remove rotate and add matrix3 (9 dimension)
+            if rotation:
+                attr_dimension = len([attr for attr in attr_list if not "rotate" in attr]) + 9
+            else:
+                attr_dimension = len(attr_list)
 
 
-            ctrl_mtx = pm.dt.TransformationMatrix(cmds.xform(ctrl, m=1, q=1, os=1))
-            ctrl_rot_mtx3 = [x for mtx in ctrl_mtx.asRotateMatrix()[:-1] for x in mtx[:-1]]
-            ctrl_trans = ctrl_mtx.getTranslation("object")
+            rand_min = -50
+            rand_max = 50
 
-            rig_data_add = [x]
-            rig_data_add.extend([ctrl, 12, "translateX", ctrl_trans[0], "translateY", ctrl_trans[1], "translateZ", ctrl_trans[2],
-                                        "rotate_00", ctrl_rot_mtx3[0], "rotate_01", ctrl_rot_mtx3[1], "rotate_02", ctrl_rot_mtx3[2],
-                                        "rotate_10", ctrl_rot_mtx3[3], "rotate_11", ctrl_rot_mtx3[4], "rotate_12", ctrl_rot_mtx3[5],
-                                        "rotate_20", ctrl_rot_mtx3[6], "rotate_21", ctrl_rot_mtx3[7], "rotate_22", ctrl_rot_mtx3[8]])
+            random.seed(i+x)
+            for attr in attr_list:
+                if "translate" in attr:
+                    rand_min = -50
+                elif "rotate" in attr:
+                    rand_min = -180
+                cmds.setAttr("{}.{}".format(ctrl, attr), round(random.uniform(rand_min, -rand_min), 5))
 
-            #rig_data_add.extend([ctrl, 3, "translateX", ctrl_trans[0], "translateY", ctrl_trans[1], "translateZ", ctrl_trans[2]])   
+
+            #if "translate" in attr_list:
+            #    ctrl_trans = ctrl_mtx.getTranslation("object")
+
+            rig_data_add = [x, ctrl, attr_dimension]
+            for attr in attr_list:
+                if "rotate" in attr:
+                    continue
+                value = cmds.getAttr("{}.{}".format(ctrl, attr))
+                rig_data_add.extend([attr, value])
+
+            if rotation:
+                ctrl_mtx = pm.dt.TransformationMatrix(cmds.xform(ctrl, m=1, q=1, os=1))
+                ctrl_rot_mtx3 = [x for mtx in ctrl_mtx.asRotateMatrix()[:-1] for x in mtx[:-1]]
+
+                rig_data_add.extend(["rotate_00", ctrl_rot_mtx3[0], "rotate_01", ctrl_rot_mtx3[1], "rotate_02", ctrl_rot_mtx3[2],
+                                    "rotate_10", ctrl_rot_mtx3[3], "rotate_11", ctrl_rot_mtx3[4], "rotate_12", ctrl_rot_mtx3[5],
+                                    "rotate_20", ctrl_rot_mtx3[6], "rotate_21", ctrl_rot_mtx3[7], "rotate_22", ctrl_rot_mtx3[8]])
 
             rig_data.append(rig_data_add)
+            print(rig_data_add)
 
 
         for y, jnt in enumerate(jnt_list):
@@ -86,8 +143,7 @@ def prep_data():
 
     # reset transforms to zero
     for ctrl in ctrl_list:
-        cmds.xform(ctrl, t=[0,0,0], ro=[0,0,0], s=[1,1,1], os=1)
-
+        restore_defaults(ctrl)
 
     rig_header = ["No.", "rigName", "dimension", "translateX", "translateX_value", "translateY", "translateY_value", "translateZ", "translateZ_value",
                                         "rotate_00", "rotate_00_value", "rotate_01", "rotate_01_value", "rotate_02", "rotate_02_value",

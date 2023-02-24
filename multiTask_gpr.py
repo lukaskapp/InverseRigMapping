@@ -103,7 +103,7 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
     likelihood.train()
 
     # Use the adam optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)  # lr = learning rate
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.3)  # lr = learning rate
 
     # "Loss" for GPs - the marginal log likelihood
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
@@ -153,7 +153,7 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
             ax_plot(axs[i], i, train_y[:, i], train_x_rot[:, i], predictions, 'Observed Values (Likelihood)', -50, 50)
         #ax_plot(axs[1], 1, train_y[:, 1], train_x[:, 0], predictions, 'Observed Values (Likelihood)', -40, 40)
         
-        
+    
     return likelihood, model, x_trans_min, x_trans_max
 
 

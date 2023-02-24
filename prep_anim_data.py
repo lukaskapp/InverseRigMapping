@@ -18,7 +18,7 @@ def prep_data():
         jnt_list = [obj for obj in cmds.listRelatives(sel_jnt, ad=1, typ="joint") if "_bind" in obj and not "_end_" in obj]
         jnt_list.append(sel_jnt)
         jnt_list.reverse()
-    else:
+    else: 
         jnt_list = [sel_jnt]
 
     anim_data = []
