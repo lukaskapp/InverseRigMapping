@@ -70,7 +70,7 @@ def map_data():
                     cmds.setKeyframe(ctrl, t=frame, at=attr, v=float(values_list[n][i][2+x]))
 
                     
-                """
+                
                 offset = 5
                 mtx = pm.dt.TransformationMatrix((float(values_list[n][i][offset+0]), float(values_list[n][i][offset+1]), float(values_list[n][i][offset+2]), 0.0,
                                                 float(values_list[n][i][offset+3]), float(values_list[n][i][offset+4]), float(values_list[n][i][offset+5]), 0.0,
@@ -88,7 +88,7 @@ def map_data():
                     cmds.setAttr("{}.shearXY".format(ctrl), 0.0)
                     cmds.setAttr("{}.shearXZ".format(ctrl), 0.0)
                     cmds.setAttr("{}.shearYZ".format(ctrl), 0.0)
-                """
+                
 
         cmds.currentTime(current_frame)
         

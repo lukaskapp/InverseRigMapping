@@ -31,8 +31,18 @@ def predict_data(anim_path):
 
     # get number of objs in first column and mult it with len of data entries
     anim_x_depth =  len(np.unique(anim_dataset.iloc[:, :1]))
+    anim_data_frames = int(len(anim_dataset)/anim_x_depth)
+
     mean_depth = len(anim_dataset.iloc[:, 2:].values[0])
-    anim_x = torch.from_numpy(np.array(anim_dataset.iloc[:, 2:]).reshape(-1, mean_depth)).float()
+
+
+    anim_x_raw = np.array(anim_dataset.iloc[:, 2:]).reshape(anim_x_depth, -1, mean_depth)
+    anim_x1 = torch.from_numpy(anim_x_raw[0]).float()
+    anim_x2 = torch.from_numpy(anim_x_raw[1]).float()
+    anim_x3 = torch.from_numpy(anim_x_raw[2]).float()
+
+    anim_x = torch.cat((anim_x1, anim_x2, anim_x3), -1).float()
+    #anim_x = torch.from_numpy(np.array(anim_dataset.iloc[:, 2:]).reshape(anim_x_depth, -1)).float()
     anim_x = anim_x.to(device)
 
     anim_x_trans = anim_x[:, :3]
@@ -49,7 +59,7 @@ def predict_data(anim_path):
 
 
     anim_x_norm = torch.cat((anim_x_trans_norm, anim_x_rot), -1).reshape(-1, mean_depth)
-    #anim_x_norm = anim_x
+    anim_x_norm = anim_x
 
 
 
@@ -85,16 +95,25 @@ def predict_data(anim_path):
 
 
     predict_data = []
-    for translate in predict_mean:
-        predict_data.append([0, "irm_C_ik_ctrl", translate[0].cpu().detach().numpy(), translate[1].cpu().detach().numpy(), translate[2].cpu().detach().numpy()])
+    for data in predict_mean:
+        data_list = [value.cpu().detach().numpy() for value in data]
+        add_data = [0, "arm_L_arm_ik_ctrl"]
+        add_data.extend(data_list)
+        predict_data.append(add_data)
+        
 
 
-    header = ["No.", "jointName", "translateX", "translateY", "translateZ"]
+    header = ["No.", "jointName", "translateX", "translateY", "translateZ",                                     
+                                    "rotate_00", "rotate_01", "rotate_02",
+                                    "rotate_10", "rotate_11", "rotate_12",
+                                    "rotate_20", "rotate_21", "rotate_22"]
 
     with open(predict_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(header)
         writer.writerows(predict_data)
+
+
 
 #if __name__=="__main__":
 #    predict_data(anim_path=pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "anim_data_01.csv"))
