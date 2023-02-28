@@ -34,6 +34,7 @@ def check_source_connection(obj, attr):
     return connection
 
 
+
 def prep_data():
     if len(cmds.ls(sl=1)) == 0:
         om.MGlobal.displayError("Nothing selected! Please select one control and one or more joints!")
@@ -41,9 +42,11 @@ def prep_data():
 
     # filter selection into joints and controls
     ctrl_list = [ctrl for ctrl in cmds.ls(sl=1, typ="transform") if "_ctrl" in ctrl and not "_srtBuffer" in ctrl]
+    ctrl_list.sort()
     print("CTRL LIST: ", ctrl_list)
 
     jnt_list = [jnt for jnt in cmds.ls(sl=1, typ="joint") if "_bind" in jnt and not "_end_bind" in jnt]
+    jnt_list.sort()
     print("JNT LIST: ", jnt_list)
 
 
@@ -53,7 +56,7 @@ def prep_data():
     for ctrl in ctrl_list:
         restore_defaults(ctrl)
 
-    # filter  attributes that have incoming connections
+    # filter attributes that have incoming connections
     # and store the default values for later use
     jnt_defaults = {}
     for jnt in jnt_list:
@@ -62,23 +65,53 @@ def prep_data():
             if check_source_connection(jnt, attr):
                 attr_defaults[attr] = cmds.getAttr("{}.{}".format(jnt, attr))
         jnt_defaults[jnt] = attr_defaults
-    print(jnt_defaults)
+    print("JNT DEFAULTS", jnt_defaults)
+
+    # list all unique attrs across all joints / controls - that will define the amount of column headers
+    jnt_unique_attrs = list(set([jnt_attr for jnt_default in jnt_defaults.values() for jnt_attr in jnt_default.keys()]))
+    if ("rotateX" or "rotateY" or "rotateZ") in jnt_unique_attrs:
+        jnt_unique_attrs = list(set(jnt_unique_attrs).difference(["rotateX", "rotateY", "rotateZ"]))
+        jnt_unique_attrs.append("rot_mtx")
+    jnt_unique_attrs.sort() # reoder list to make it independent of joint selection
+    print("JNT UNIQUE", jnt_unique_attrs)
 
 
-    for i in range(500):
+    ctrl_unique_attrs = list(set([unique_attr for ctrl in ctrl_list for unique_attr in get_all_attributes(ctrl)]))
+    # if one rotation axis is included in "ctrl_unique_attrs" lis, remove all rotation axis (X,Y,Z) and add a single "rotate" value
+    # as a hint for later that a rotation matrix should be included in the train data
+    if ("rotateX" or "rotateY" or "rotateZ") in ctrl_unique_attrs:
+        ctrl_unique_attrs = list(set(ctrl_unique_attrs).difference(["rotateX", "rotateY", "rotateZ"]))
+        ctrl_unique_attrs.append("rot_mtx")
+    ctrl_unique_attrs.sort() # reoder list to make it independent of control selection
+    print("CTRL UNIQUE", ctrl_unique_attrs)
+
+
+    print("")
+    print("-----------------------------------------------------------")
+    print("")
+
+
+    for i in range(3):
         for x, ctrl in enumerate(ctrl_list):
-            # only get integer and float attributes
+            # only get integer and float attributes of selected control
             attr_list = get_all_attributes(ctrl)
+            print("ATTR LIST: ",attr_list)
+            
             
             # check if rotation is in attr list
-            rotation = [rot for rot in attr_list if "rotate" in attr]
-            rotation = True
+            if ("rotateX" or "rotateY" or "rotateZ") in attr_list:
+                rotation = True
+            else:
+                rotation = False
+            print("ROT: ", rotation)
 
             # set dimension to length of attr_list; if rotate in list, remove rotate and add matrix3 (9 dimension)
             if rotation:
                 attr_dimension = len([attr for attr in attr_list if not "rotate" in attr]) + 9
             else:
                 attr_dimension = len(attr_list)
+            
+            print(attr_dimension)
 
 
             rand_min = -50
@@ -114,6 +147,9 @@ def prep_data():
             rig_data.append(rig_data_add)
             print(rig_data_add)
 
+            print("")
+            print("-----------------------------------------------------------")
+            print("")
 
         for y, jnt in enumerate(jnt_list):
             jnt_rot = [round(rot, 3) for rot in cmds.xform(jnt, q=1, ro=1, os=1)]
@@ -122,8 +158,8 @@ def prep_data():
             jnt_rot_mtx3 = [x for mtx in jnt_mtx.asRotateMatrix()[:-1] for x in mtx[:-1]]
             jnt_trans = jnt_mtx.getTranslation("object")
 
-            print("JNT POS: ", jnt_trans)
-            print("JNT ROT: ", jnt_rot)
+            #print("JNT POS: ", jnt_trans)
+            #print("JNT ROT: ", jnt_rot)
 
             
             jnt_data_add = [y]

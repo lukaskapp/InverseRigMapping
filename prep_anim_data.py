@@ -17,7 +17,8 @@ def prep_data():
     if cmds.listRelatives(sel_jnt, ad=1, typ="joint"):
         jnt_list = [obj for obj in cmds.listRelatives(sel_jnt, ad=1, typ="joint") if "_bind" in obj and not "_end_" in obj]
         jnt_list.append(sel_jnt)
-        jnt_list.reverse()
+        #jnt_list.reverse()
+        jnt_list.sort() # sort jnt list to match the train data from the "prep_training_data script"
     else: 
         jnt_list = [sel_jnt]
 
