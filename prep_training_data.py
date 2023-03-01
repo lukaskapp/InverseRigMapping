@@ -34,6 +34,44 @@ def check_source_connection(obj, attr):
     return connection
 
 
+def check_transformLimit(ctrl, axis="rotateX", default_min=-180, default_max=180):
+    limit_dict = {"translateX":[1,0,0, 0,0,0, 0,0,0], "translateY":[0,1,0, 0,0,0, 0,0,0], "translateZ":[0,0,1, 0,0,0, 0,0,0],
+                    "rotateX":[0,0,0, 1,0,0, 0,0,0], "rotateY":[0,0,0, 0,1,0, 0,0,0], "rotateZ":[0,0,0, 0,0,1, 0,0,0],
+                    "scaleX":[0,0,0, 0,0,0, 1,0,0], "scaleY":[0,0,0, 0,0,0, 0,1,0], "scaleZ":[0,0,0, 0,0,0, 0,0,1]}
+
+    if cmds.transformLimits(ctrl, q=1, etx=limit_dict[axis][0], ety=limit_dict[axis][1], etz=limit_dict[axis][2],
+                                        erx=limit_dict[axis][3], ery=limit_dict[axis][4], erz=limit_dict[axis][5],
+                                        esx=limit_dict[axis][6], esy=limit_dict[axis][7], esz=limit_dict[axis][8])[0]:
+        limit_min =  cmds.transformLimits(ctrl, q=1, tx=limit_dict[axis][0], ty=limit_dict[axis][1], tz=limit_dict[axis][2],
+                                                    rx=limit_dict[axis][3], ry=limit_dict[axis][4], rz=limit_dict[axis][5],
+                                                    sx=limit_dict[axis][6], sy=limit_dict[axis][7], sz=limit_dict[axis][8])[0]
+    else:
+        limit_min = default_min
+
+    if cmds.transformLimits(ctrl, q=1, etx=limit_dict[axis][0], ety=limit_dict[axis][1], etz=limit_dict[axis][2],
+                                        erx=limit_dict[axis][3], ery=limit_dict[axis][4], erz=limit_dict[axis][5],
+                                        esx=limit_dict[axis][6], esy=limit_dict[axis][7], esz=limit_dict[axis][8])[1]:
+        limit_max =  cmds.transformLimits(ctrl, q=1, tx=limit_dict[axis][0], ty=limit_dict[axis][1], tz=limit_dict[axis][2],
+                                                    rx=limit_dict[axis][3], ry=limit_dict[axis][4], rz=limit_dict[axis][5],
+                                                    sx=limit_dict[axis][6], sy=limit_dict[axis][7], sz=limit_dict[axis][8])[1]
+    else:
+        limit_max = default_max
+
+    return limit_min, limit_max
+
+def query_visibility(obj): # check obj parents for vis flag
+    if cmds.getAttr("{}.v".format(obj)):
+        while cmds.listRelatives(obj, p=1):
+            parent = cmds.listRelatives(obj, p=1)[0]
+            if cmds.getAttr("{}.v".format(parent)):
+                obj = parent
+            else:
+                return False
+        return True
+    else:
+        return False
+    
+
 
 def prep_data():
     if len(cmds.ls(sl=1)) == 0:
@@ -41,7 +79,7 @@ def prep_data():
         return
 
     # filter selection into joints and controls
-    ctrl_list = [ctrl for ctrl in cmds.ls(sl=1, typ="transform") if "_ctrl" in ctrl and not "_srtBuffer" in ctrl]
+    ctrl_list = [ctrl for ctrl in cmds.ls(sl=1, typ="transform") if "_ctrl" in ctrl and not "_srtBuffer" in ctrl and query_visibility(ctrl)]
     ctrl_list.sort()
     print("CTRL LIST: ", ctrl_list)
 
@@ -92,10 +130,10 @@ def prep_data():
 
 
     for i in range(3):
-        for x, ctrl in enumerate(ctrl_list):
+        for ctrl_index, ctrl in enumerate(ctrl_list):
             # only get integer and float attributes of selected control
             attr_list = get_all_attributes(ctrl)
-            print("ATTR LIST: ",attr_list)
+            print("ATTR LIST: ", attr_list)
             
             
             # check if rotation is in attr list
@@ -111,25 +149,42 @@ def prep_data():
             else:
                 attr_dimension = len(attr_list)
             
-            print(attr_dimension)
+            print("DIMENSION: ", attr_dimension)
+            print("-----------------------------------------------------------")
 
 
-            rand_min = -50
-            rand_max = 50
-
-            random.seed(i+x)
+            default_rand_min = -50
+            random.seed(i+ctrl_index)
             for attr in attr_list:
-                if "translate" in attr:
-                    rand_min = -50
-                elif "rotate" in attr:
-                    rand_min = -180
-                cmds.setAttr("{}.{}".format(ctrl, attr), round(random.uniform(rand_min, -rand_min), 5))
+                if cmds.attributeQuery(attr, node=ctrl, minExists=1) or cmds.attributeQuery(attr, node=ctrl, maxExists=1): # if min or max range exists, use those as new values for rand min/max
+                    if cmds.attributeQuery(attr, node=ctrl, minExists=1):
+                        rand_min = cmds.attributeQuery(attr, node=ctrl, min=1)[0]
+                    else:
+                        rand_min = default_rand_min
+
+                    if cmds.attributeQuery(attr, node=ctrl, maxExists=1):
+                        rand_max = cmds.attributeQuery(attr, node=ctrl, max=1)[0]
+                    else:
+                        rand_max = -default_rand_min
+
+                elif attr in ["rotateX", "rotateY", "rotateZ"]: # if rotation, translate or scale is used, check limits and use those for min/max range
+                    rand_min, rand_max = check_transformLimit(ctrl, axis=attr, default_min=-180, default_max=180)
+                elif attr in ["translateX", "translateY", "translateZ"]:
+                    rand_min, rand_max = check_transformLimit(ctrl, axis=attr, default_min=default_rand_min, default_max=-default_rand_min)
+                elif attr in ["scaleX", "scaleY", "scaleZ"]:
+                    rand_min, rand_max = check_transformLimit(ctrl, axis=attr, default_min=0.01, default_max=10)
+
+                print("ATTR: ", attr)
+                print("RAND MIN: ", rand_min)
+                print("RAND MAX: ", rand_max)
+                print("------------------------")
+                #cmds.setAttr("{}.{}".format(ctrl, attr), round(random.uniform(rand_min, rand_max), 5))
 
 
             #if "translate" in attr_list:
             #    ctrl_trans = ctrl_mtx.getTranslation("object")
 
-            rig_data_add = [x, ctrl, attr_dimension]
+            rig_data_add = [ctrl_index, ctrl, attr_dimension]
             for attr in attr_list:
                 if "rotate" in attr:
                     continue
@@ -181,10 +236,12 @@ def prep_data():
     for ctrl in ctrl_list:
         restore_defaults(ctrl)
 
-    rig_header = ["No.", "rigName", "dimension", "translateX", "translateX_value", "translateY", "translateY_value", "translateZ", "translateZ_value",
-                                        "rotate_00", "rotate_00_value", "rotate_01", "rotate_01_value", "rotate_02", "rotate_02_value",
-                                        "rotate_10", "rotate_10_value", "rotate_11", "rotate_11_value", "rotate_12", "rotate_12_value",
-                                        "rotate_20", "rotate_20_value", "rotate_21", "rotate_21_value", "rotate_22", "rotate_22_value"]
+    rig_header = ["No.", "rigName", "dimension","translateX", "translateY", "translateZ", 
+                                        "rotMtx_00", "rotMtx_01", "rotMtx_02",
+                                        "rotMtx_10", "rotMtx_11", "rotMtx_12",
+                                        "rotMtx_20", "rotMtx_21", "rotMtx_22",
+                                        "scaleX", "scaleY", "scaleZ",
+                                        "custom_attrs"]
 
     #rig_header = ["No.", "rigName", "dimension", "translateX", "translateX_value", "translateY", "translateY_value", "translateZ", "translateZ_value"]
 
@@ -194,10 +251,11 @@ def prep_data():
     #                                "rotate_10", "rotate_11", "rotate_12",
     #                                "rotate_20", "rotate_21", "rotate_22"]
 
-    jnt_header = ["No.", "jointName",
-                                    "rotate_00", "rotate_01", "rotate_02",
-                                    "rotate_10", "rotate_11", "rotate_12",
-                                    "rotate_20", "rotate_21", "rotate_22"]
+    jnt_header = ["No.", "jointName", "translateX", "translateY", "translateZ",
+                                        "rotMtx_00", "rotMtx_01", "rotMtx_02",
+                                        "rotMtx_10", "rotMtx_11", "rotMtx_12",
+                                        "rotMtx_20", "rotMtx_21", "rotMtx_22",
+                                        "scaleX", "scaleY", "scaleZ",]
 
     print("RIG DATA: ", rig_data)
     print("JNT DATA: ", jnt_data)

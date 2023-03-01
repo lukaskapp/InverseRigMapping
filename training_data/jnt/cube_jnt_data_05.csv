@@ -1,4 +1,1 @@
-No.,jointName,rotate_00,rotate_01,rotate_02,rotate_10,rotate_11,rotate_12,rotate_20,rotate_21,rotate_22
-0,arm_L_elbow_ik_bind,0.9600084762927004,0.0,-0.2799709367883884,0.0,1.0,0.0,0.2799709367883884,0.0,0.9600084762927004
-0,arm_L_elbow_ik_bind,0.9997972042046759,0.0,-0.0201382835543053,0.0,1.0,0.0,0.0201382835543053,0.0,0.9997972042046759
-0,arm_L_elbow_ik_bind,0.9600084762927004,0.0,-0.2799709367883884,0.0,1.0,0.0,0.2799709367883884,0.0,0.9600084762927004
+No.,jointName,translateX,translateY,translateZ,rotMtx_00,rotMtx_01,rotMtx_02,rotMtx_10,rotMtx_11,rotMtx_12,rotMtx_20,rotMtx_21,rotMtx_22,scaleX,scaleY,scaleZ
