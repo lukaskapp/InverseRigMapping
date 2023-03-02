@@ -22,11 +22,11 @@ dev = "cpu"
 device = torch.device(dev)
 
 
-#rig_fileName="cube_rig_data_05.csv"
-#jnt_fileName="cube_jnt_data_05.csv"
+#rig_fileName="irm_rig_data.csv"
+#jnt_fileName="irm_jnt_data.csv"
 #plots=True
 
-def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv", anim_path=None, plots=False):
+def gpr(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv", anim_path=None, plots=False):
     rig_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig", rig_fileName)
     jnt_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt", jnt_fileName)
 
@@ -159,4 +159,4 @@ def gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv"
 
 
 #if __name__ == "__main__":
-#    gpr(rig_fileName="cube_rig_data_05.csv", jnt_fileName="cube_jnt_data_05.csv", anim_path=None, plots=True)
+#    gpr(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv", anim_path=None, plots=True)

@@ -39,7 +39,7 @@ def map_data():
     anim_path, frames = prep_anim_data.prep_data()
     get_predict_data(anim_path)
 
-    predict_name = "predict_cube_data.csv"
+    predict_name = "irm_predict_data.csv"
     predict_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "predict_data", predict_name)
 
     with open(predict_path, "r") as csvfile:

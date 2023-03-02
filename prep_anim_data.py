@@ -56,7 +56,7 @@ def prep_data():
 
 
     print("DATA: ", anim_data)
-    file_name = "anim_data_01.csv"
+    file_name = "irm_anim_data.csv"
     fullpath = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", file_name)
 
 

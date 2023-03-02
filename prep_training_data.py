@@ -72,6 +72,26 @@ def query_visibility(obj): # check obj parents for vis flag
         return False
     
 
+def build_header(base_header=["No.", "rigName", "dimension"], attr_list=[]):
+
+    for attr in attr_list:
+        if attr in ["translateX", "translateY", "translateZ"]:
+            base_header.append(attr)
+
+    if "rot_mtx" in attr_list:
+        base_header.append("rotMtx_00", "rotMtx_01", "rotMtx_02",
+                            "rotMtx_10", "rotMtx_11", "rotMtx_12",
+                            "rotMtx_20", "rotMtx_21", "rotMtx_22",)
+
+    for attr in attr_list:
+        if attr in ["scaleX", "scaleY", "scaleZ"]:
+            base_header.append(attr) 
+
+    base_header.extend([attr for attr in attr_list if not attr in ["translateX", "translateY", "translateZ", "rot_mtx", "scaleX", "scaleY", "scaleZ"]])
+
+    return base_header  
+
+
 
 def prep_data():
     if len(cmds.ls(sl=1)) == 0:
@@ -88,11 +108,19 @@ def prep_data():
     print("JNT LIST: ", jnt_list)
 
 
-    rig_data = []
-    jnt_data = []
-
     for ctrl in ctrl_list:
         restore_defaults(ctrl)
+
+
+    ctrl_unique_attrs = list(set([unique_attr for ctrl in ctrl_list for unique_attr in get_all_attributes(ctrl)]))
+    # if one rotation axis is included in "ctrl_unique_attrs" lis, remove all rotation axis (X,Y,Z) and add a single "rotate" value
+    # as a hint for later that a rotation matrix should be included in the train data
+    if ("rotateX" or "rotateY" or "rotateZ") in ctrl_unique_attrs:
+        ctrl_unique_attrs = list(set(ctrl_unique_attrs).difference(["rotateX", "rotateY", "rotateZ"]))
+        ctrl_unique_attrs.append("rot_mtx")
+    ctrl_unique_attrs.sort() # reoder list to make it independent of control selection
+    print("CTRL UNIQUE", ctrl_unique_attrs)
+
 
     # filter attributes that have incoming connections
     # and store the default values for later use
@@ -113,21 +141,18 @@ def prep_data():
     jnt_unique_attrs.sort() # reoder list to make it independent of joint selection
     print("JNT UNIQUE", jnt_unique_attrs)
 
-
-    ctrl_unique_attrs = list(set([unique_attr for ctrl in ctrl_list for unique_attr in get_all_attributes(ctrl)]))
-    # if one rotation axis is included in "ctrl_unique_attrs" lis, remove all rotation axis (X,Y,Z) and add a single "rotate" value
-    # as a hint for later that a rotation matrix should be included in the train data
-    if ("rotateX" or "rotateY" or "rotateZ") in ctrl_unique_attrs:
-        ctrl_unique_attrs = list(set(ctrl_unique_attrs).difference(["rotateX", "rotateY", "rotateZ"]))
-        ctrl_unique_attrs.append("rot_mtx")
-    ctrl_unique_attrs.sort() # reoder list to make it independent of control selection
-    print("CTRL UNIQUE", ctrl_unique_attrs)
+    
+    # build data header based on unique attrs of controls and joints
+    rig_header = build_header(base_header=["No.", "rigName", "dimension"], attr_list=ctrl_unique_attrs)
+    jnt_header = build_header(base_header=["No.", "jointName", "dimension"], attr_list=ctrl_unique_attrs)
 
 
     print("")
     print("-----------------------------------------------------------")
     print("")
 
+    rig_data = []
+    jnt_data = []
 
     for i in range(3):
         for ctrl_index, ctrl in enumerate(ctrl_list):
@@ -186,10 +211,8 @@ def prep_data():
 
             rig_data_add = [ctrl_index, ctrl, attr_dimension]
             for attr in attr_list:
-                if "rotate" in attr:
-                    continue
-                value = cmds.getAttr("{}.{}".format(ctrl, attr))
-                rig_data_add.extend([attr, value])
+                if attr in ["translateX", "translateY", "translateZ"]:
+                    rig_data_add.append(cmds.getAttr("{}.{}".format(ctrl, attr)))
 
             if rotation:
                 ctrl_mtx = pm.dt.TransformationMatrix(cmds.xform(ctrl, m=1, q=1, os=1))
@@ -198,6 +221,18 @@ def prep_data():
                 rig_data_add.extend(["rotate_00", ctrl_rot_mtx3[0], "rotate_01", ctrl_rot_mtx3[1], "rotate_02", ctrl_rot_mtx3[2],
                                     "rotate_10", ctrl_rot_mtx3[3], "rotate_11", ctrl_rot_mtx3[4], "rotate_12", ctrl_rot_mtx3[5],
                                     "rotate_20", ctrl_rot_mtx3[6], "rotate_21", ctrl_rot_mtx3[7], "rotate_22", ctrl_rot_mtx3[8]])
+
+            for attr in attr_list:
+                if attr in ["scaleX", "scaleY", "scaleZ"]:
+                    rig_data_add.append(cmds.getAttr("{}.{}".format(ctrl, attr)))
+
+            for attr in attr_list:
+                if attr in ["translateX", "translateY", "translateZ", "rotateX", "rotateY", "rotateZ", "scaleX", "scaleY", "scaleZ"]:
+                    continue
+                value = cmds.getAttr("{}.{}".format(ctrl, attr))
+                rig_data_add.append(cmds.getAttr("{}.{}".format(ctrl, attr)))
+
+
 
             rig_data.append(rig_data_add)
             print(rig_data_add)
@@ -236,32 +271,12 @@ def prep_data():
     for ctrl in ctrl_list:
         restore_defaults(ctrl)
 
-    rig_header = ["No.", "rigName", "dimension","translateX", "translateY", "translateZ", 
-                                        "rotMtx_00", "rotMtx_01", "rotMtx_02",
-                                        "rotMtx_10", "rotMtx_11", "rotMtx_12",
-                                        "rotMtx_20", "rotMtx_21", "rotMtx_22",
-                                        "scaleX", "scaleY", "scaleZ",
-                                        "custom_attrs"]
-
-    #rig_header = ["No.", "rigName", "dimension", "translateX", "translateX_value", "translateY", "translateY_value", "translateZ", "translateZ_value"]
-
-
-    #jnt_header = ["No.", "jointName", "translateX", "translateY", "translateZ",
-    #                                "rotate_00", "rotate_01", "rotate_02",
-    #                                "rotate_10", "rotate_11", "rotate_12",
-    #                                "rotate_20", "rotate_21", "rotate_22"]
-
-    jnt_header = ["No.", "jointName", "translateX", "translateY", "translateZ",
-                                        "rotMtx_00", "rotMtx_01", "rotMtx_02",
-                                        "rotMtx_10", "rotMtx_11", "rotMtx_12",
-                                        "rotMtx_20", "rotMtx_21", "rotMtx_22",
-                                        "scaleX", "scaleY", "scaleZ",]
 
     print("RIG DATA: ", rig_data)
     print("JNT DATA: ", jnt_data)
 
-    rig_fileName = "cube_rig_data_05.csv"
-    jnt_fileName = "cube_jnt_data_05.csv"
+    rig_fileName = "irm_rig_data.csv"
+    jnt_fileName = "irm_jnt_data.csv"
     rig_fullpath = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig", rig_fileName)
     jnt_fullpath = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt", jnt_fileName)
 

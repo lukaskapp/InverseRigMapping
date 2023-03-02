@@ -87,7 +87,7 @@ def predict_data(anim_path):
 
 
     # save anim data for Maya
-    predict_name = "predict_cube_data.csv"
+    predict_name = "irm_predict_data.csv"
     predict_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "predict_data", predict_name)
 
     #header = predict_dataset.columns.values
