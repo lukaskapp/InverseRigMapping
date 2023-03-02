@@ -8,11 +8,11 @@ import csv
 import pathlib
 
 
-def get_all_attributes(obj):
+def get_all_attributes(obj, unlocked=True):
     '''
     return all attributes of obj if attribute is unlocked, keyable, scalar and not of type enum or bool
     '''
-    return [attr for attr in cmds.listAttr(obj, unlocked=True, keyable=True, scalar=True) if not cmds.attributeQuery(attr, node=obj, at=1) in ["enum", "bool"]]
+    return [attr for attr in cmds.listAttr(obj, unlocked=unlocked, keyable=True, scalar=True) if not cmds.attributeQuery(attr, node=obj, at=1) in ["enum", "bool"]]
 
 def restore_defaults(ctrl):
     '''
@@ -79,9 +79,9 @@ def build_header(base_header=["No.", "rigName", "dimension"], attr_list=[]):
             base_header.append(attr)
 
     if "rot_mtx" in attr_list:
-        base_header.append("rotMtx_00", "rotMtx_01", "rotMtx_02",
+        base_header.extend(["rotMtx_00", "rotMtx_01", "rotMtx_02",
                             "rotMtx_10", "rotMtx_11", "rotMtx_12",
-                            "rotMtx_20", "rotMtx_21", "rotMtx_22",)
+                            "rotMtx_20", "rotMtx_21", "rotMtx_22"])
 
     for attr in attr_list:
         if attr in ["scaleX", "scaleY", "scaleZ"]:
@@ -92,6 +92,18 @@ def build_header(base_header=["No.", "rigName", "dimension"], attr_list=[]):
     return base_header  
 
 
+def get_attr_dimension(attr_list, rotation=True):
+    # set dimension to length of attr_list; if rotate in list, remove rotate and add matrix3 (9 dimension)
+    if rotation:
+        return len([attr for attr in attr_list if not attr in ["rotateX", "rotateY", "rotateZ"]]) + 9
+    else:
+        return len(attr_list)
+
+def check_for_rotation(attr_list):
+    if ("rotateX" or "rotateY" or "rotateZ") in attr_list:
+        return True
+    else:
+        return False
 
 def prep_data():
     if len(cmds.ls(sl=1)) == 0:
@@ -127,7 +139,7 @@ def prep_data():
     jnt_defaults = {}
     for jnt in jnt_list:
         attr_defaults = {}
-        for attr in get_all_attributes(jnt):
+        for attr in get_all_attributes(jnt, unlocked=False):
             if check_source_connection(jnt, attr):
                 attr_defaults[attr] = cmds.getAttr("{}.{}".format(jnt, attr))
         jnt_defaults[jnt] = attr_defaults
@@ -144,7 +156,7 @@ def prep_data():
     
     # build data header based on unique attrs of controls and joints
     rig_header = build_header(base_header=["No.", "rigName", "dimension"], attr_list=ctrl_unique_attrs)
-    jnt_header = build_header(base_header=["No.", "jointName", "dimension"], attr_list=ctrl_unique_attrs)
+    jnt_header = build_header(base_header=["No.", "jointName", "dimension"], attr_list=jnt_unique_attrs)
 
 
     print("")
@@ -162,17 +174,12 @@ def prep_data():
             
             
             # check if rotation is in attr list
-            if ("rotateX" or "rotateY" or "rotateZ") in attr_list:
-                rotation = True
-            else:
-                rotation = False
+            rotation = check_for_rotation(attr_list)
             print("ROT: ", rotation)
 
             # set dimension to length of attr_list; if rotate in list, remove rotate and add matrix3 (9 dimension)
-            if rotation:
-                attr_dimension = len([attr for attr in attr_list if not "rotate" in attr]) + 9
-            else:
-                attr_dimension = len(attr_list)
+            attr_dimension = get_attr_dimension(attr_list, rotation)
+
             
             print("DIMENSION: ", attr_dimension)
             print("-----------------------------------------------------------")
@@ -218,9 +225,9 @@ def prep_data():
                 ctrl_mtx = pm.dt.TransformationMatrix(cmds.xform(ctrl, m=1, q=1, os=1))
                 ctrl_rot_mtx3 = [x for mtx in ctrl_mtx.asRotateMatrix()[:-1] for x in mtx[:-1]]
 
-                rig_data_add.extend(["rotate_00", ctrl_rot_mtx3[0], "rotate_01", ctrl_rot_mtx3[1], "rotate_02", ctrl_rot_mtx3[2],
-                                    "rotate_10", ctrl_rot_mtx3[3], "rotate_11", ctrl_rot_mtx3[4], "rotate_12", ctrl_rot_mtx3[5],
-                                    "rotate_20", ctrl_rot_mtx3[6], "rotate_21", ctrl_rot_mtx3[7], "rotate_22", ctrl_rot_mtx3[8]])
+                rig_data_add.extend([ctrl_rot_mtx3[0], ctrl_rot_mtx3[1], ctrl_rot_mtx3[2],
+                                    ctrl_rot_mtx3[3], ctrl_rot_mtx3[4], ctrl_rot_mtx3[5],
+                                    ctrl_rot_mtx3[6], ctrl_rot_mtx3[7], ctrl_rot_mtx3[8]])
 
             for attr in attr_list:
                 if attr in ["scaleX", "scaleY", "scaleZ"]:
@@ -242,6 +249,11 @@ def prep_data():
             print("")
 
         for y, jnt in enumerate(jnt_list):
+            attr_list = [attr for attr in get_all_attributes(jnt, unlocked=False) if check_source_connection(jnt, attr)]
+            
+            rotation = check_for_rotation(attr_list)
+            jnt_dimension = get_attr_dimension(attr_list, rotation)
+
             jnt_rot = [round(rot, 3) for rot in cmds.xform(jnt, q=1, ro=1, os=1)]
 
             jnt_mtx = pm.dt.TransformationMatrix(cmds.xform(jnt, m=1, q=1, os=1))
@@ -252,16 +264,10 @@ def prep_data():
             #print("JNT ROT: ", jnt_rot)
 
             
-            jnt_data_add = [y]
-            #jnt_data_add.extend([jnt, jnt_trans[0], jnt_trans[1], jnt_trans[2],
-            #                                                    jnt_rot_mtx3[0], jnt_rot_mtx3[1], jnt_rot_mtx3[2],
-            #                                                    jnt_rot_mtx3[3], jnt_rot_mtx3[4], jnt_rot_mtx3[5],
-            #                                                    jnt_rot_mtx3[6], jnt_rot_mtx3[7], jnt_rot_mtx3[8]])
-
-            jnt_data_add.extend([jnt, 
-                                                                jnt_rot_mtx3[0], jnt_rot_mtx3[1], jnt_rot_mtx3[2],
-                                                                jnt_rot_mtx3[3], jnt_rot_mtx3[4], jnt_rot_mtx3[5],
-                                                                jnt_rot_mtx3[6], jnt_rot_mtx3[7], jnt_rot_mtx3[8]])
+            jnt_data_add = [y, jnt, jnt_dimension]
+            jnt_data_add.extend([jnt_rot_mtx3[0], jnt_rot_mtx3[1], jnt_rot_mtx3[2],
+                                jnt_rot_mtx3[3], jnt_rot_mtx3[4], jnt_rot_mtx3[5],
+                                jnt_rot_mtx3[6], jnt_rot_mtx3[7], jnt_rot_mtx3[8]])
 
             jnt_data.append(jnt_data_add)
 

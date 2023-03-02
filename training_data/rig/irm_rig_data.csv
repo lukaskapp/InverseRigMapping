@@ -1,0 +1,4 @@
+No.,rigName,dimension,translateX,translateY,translateZ,rotMtx_00,rotMtx_01,rotMtx_02,rotMtx_10,rotMtx_11,rotMtx_12,rotMtx_20,rotMtx_21,rotMtx_22
+0,arm_L_arm_ik_ctrl,12,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0
+0,arm_L_arm_ik_ctrl,12,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0
+0,arm_L_arm_ik_ctrl,12,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0
