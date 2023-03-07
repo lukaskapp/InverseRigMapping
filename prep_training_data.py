@@ -213,36 +213,27 @@ def prep_data():
                 #cmds.setAttr("{}.{}".format(ctrl, attr), round(random.uniform(rand_min, rand_max), 5))
 
 
-            #if "translate" in attr_list:
-            #    ctrl_trans = ctrl_mtx.getTranslation("object")
 
+            # create list with n/a for every attr in rig_header
             rig_data_add = [ctrl_index, ctrl, attr_dimension]
+            rig_data_add.extend(["n/a" for i in range(len(rig_header)-3)])            
             for attr in attr_list:
-                if attr in ["translateX", "translateY", "translateZ"]:
-                    rig_data_add.append(cmds.getAttr("{}.{}".format(ctrl, attr)))
+                if not attr in ["rotateX", "rotateY", "rotateZ"]:
+                    # replace only used attr of ctrls in n/a list, rest stays at n/a
+                    rig_data_add[rig_header.index(attr)] = cmds.getAttr("{}.{}".format(ctrl, attr))
+
 
             if rotation:
                 ctrl_mtx = pm.dt.TransformationMatrix(cmds.xform(ctrl, m=1, q=1, os=1))
                 ctrl_rot_mtx3 = [x for mtx in ctrl_mtx.asRotateMatrix()[:-1] for x in mtx[:-1]]
 
-                rig_data_add.extend([ctrl_rot_mtx3[0], ctrl_rot_mtx3[1], ctrl_rot_mtx3[2],
-                                    ctrl_rot_mtx3[3], ctrl_rot_mtx3[4], ctrl_rot_mtx3[5],
-                                    ctrl_rot_mtx3[6], ctrl_rot_mtx3[7], ctrl_rot_mtx3[8]])
-
-            for attr in attr_list:
-                if attr in ["scaleX", "scaleY", "scaleZ"]:
-                    rig_data_add.append(cmds.getAttr("{}.{}".format(ctrl, attr)))
-
-            for attr in attr_list:
-                if attr in ["translateX", "translateY", "translateZ", "rotateX", "rotateY", "rotateZ", "scaleX", "scaleY", "scaleZ"]:
-                    continue
-                value = cmds.getAttr("{}.{}".format(ctrl, attr))
-                rig_data_add.append(cmds.getAttr("{}.{}".format(ctrl, attr)))
-
+                start_index = rig_header.index("rotMtx_00") # get index of first rotMtx entry in rig_header and start replacing rotMtx values from there
+                for mtx_index, rot_mtx in enumerate(ctrl_rot_mtx3):
+                    rig_data_add[start_index + mtx_index] = rot_mtx
 
 
             rig_data.append(rig_data_add)
-            print(rig_data_add)
+            print("RIG DATA ADD: ", rig_data_add)
 
             print("")
             print("-----------------------------------------------------------")
@@ -253,21 +244,23 @@ def prep_data():
             
             rotation = check_for_rotation(attr_list)
             jnt_dimension = get_attr_dimension(attr_list, rotation)
-
-            jnt_rot = [round(rot, 3) for rot in cmds.xform(jnt, q=1, ro=1, os=1)]
-
-            jnt_mtx = pm.dt.TransformationMatrix(cmds.xform(jnt, m=1, q=1, os=1))
-            jnt_rot_mtx3 = [x for mtx in jnt_mtx.asRotateMatrix()[:-1] for x in mtx[:-1]]
-            jnt_trans = jnt_mtx.getTranslation("object")
-
-            #print("JNT POS: ", jnt_trans)
-            #print("JNT ROT: ", jnt_rot)
-
             
             jnt_data_add = [y, jnt, jnt_dimension]
-            jnt_data_add.extend([jnt_rot_mtx3[0], jnt_rot_mtx3[1], jnt_rot_mtx3[2],
-                                jnt_rot_mtx3[3], jnt_rot_mtx3[4], jnt_rot_mtx3[5],
-                                jnt_rot_mtx3[6], jnt_rot_mtx3[7], jnt_rot_mtx3[8]])
+            jnt_data_add.extend(["n/a" for i in range(len(jnt_header)-3)])   
+            for attr in attr_list:
+                if not attr in ["rotateX", "rotateY", "rotateZ"]:
+                    # replace only used attr of jnts in n/a list, rest stays at n/a
+                    jnt_data_add[jnt_header.index(attr)] = cmds.getAttr("{}.{}".format(jnt, attr))
+
+
+
+            if rotation:
+                jnt_mtx = pm.dt.TransformationMatrix(cmds.xform(jnt, m=1, q=1, os=1))
+                jnt_rot_mtx3 = [x for mtx in jnt_mtx.asRotateMatrix()[:-1] for x in mtx[:-1]]
+
+                start_index = jnt_header.index("rotMtx_00") # get index of first rotMtx entry in jnt_header and start replacing rotMtx values from there
+                for mtx_index, rot_mtx in enumerate(jnt_rot_mtx3):
+                    jnt_data_add[start_index + mtx_index] = rot_mtx
 
             jnt_data.append(jnt_data_add)
 
