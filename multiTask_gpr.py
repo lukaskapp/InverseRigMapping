@@ -33,25 +33,16 @@ def gpr(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv", anim_p
     rig_dataset = pd.read_csv(rig_file, na_values='?', comment='\t', sep=',', skipinitialspace=True, header=[0])
     jnt_dataset = pd.read_csv(jnt_file, na_values='?', comment='\t', sep=',', skipinitialspace=True, header=[0])
 
-    # get number of objs in first column and mult it with len of data entries
-    # tensor = all values of all jnts on one frame/entry
-    train_x_dimension =  len(np.unique(jnt_dataset.iloc[:, :1])) * len(jnt_dataset.iloc[:, 2:].values[0])
-    train_x = torch.from_numpy(np.array(jnt_dataset.iloc[:, 2:]).reshape(-1, train_x_dimension)).float()
+
+    ### BUILD JOINT DATA TENSOR ###
+
+    train_x_numObjs = len(np.unique(jnt_dataset.iloc[:, 0])) # number of objs =  length of unique items of first column
+    train_x_dimension = sum(jnt_dataset.filter(items=["dimension"]).values[:train_x_numObjs])[0] # get dimensions of each control and get sum of it
+    train_x = torch.from_numpy(np.array(jnt_dataset.iloc[:, 3:]).reshape(-1, train_x_dimension)).float()
     train_x = train_x.to(device)
     train_x_trans = train_x[:, :3]
     train_x_rot = train_x[:, 3:]
 
-    #x_trans_means = train_x_trans.mean(1, keepdim=True)
-    #x_trans_deviations = train_x_trans.std(1, keepdim=True)
-    #train_x_trans_norm = (train_x_trans - x_trans_means) / x_trans_deviations
-    #train_x_trans_norm = torch.nn.functional.normalize(train_x_trans)
-    #train_x_trans_norm = (train_x_trans - train_x_trans.min()) / (train_x_trans.max() - train_x_trans.min())
-
-    #x_rot_means = train_x_rot.mean(0, keepdim=True)
-    #x_rot_deviations = train_x_rot.std(0, keepdim=True)
-    #train_x_rot_norm = (train_x_rot - x_rot_means) / x_rot_deviations
-    #train_x_rot_norm = torch.nn.functional.normalize(train_x_rot)
-    #train_x_rot_norm = (train_x_rot - train_x_rot.min()) / (train_x_rot.max() - train_x_rot.min())
 
     # normalize inputs to range -1.0 1.0
     new_min, new_max = -1.0, 1.0
@@ -62,19 +53,20 @@ def gpr(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv", anim_p
     #x_rot_min, x_rot_max = train_x_rot.min(), train_x_rot.max()
     #train_x_rot_norm = (train_x_rot - x_rot_min) / (x_rot_max - x_rot_min) * (new_max - new_min) + new_min
         
-    train_x_norm = torch.cat((train_x_trans_norm, train_x_rot), 1)
+    #train_x_norm = torch.cat((train_x_trans_norm, train_x_rot), 1)
+    train_x_norm = train_x
 
 
-    #train_x_norm = train_x_rot
-    #train_x_dimension = 9
+    ### BUILD RIG DATA TENSOR ###
+    train_y_numObjs = len(np.unique(rig_dataset.iloc[:, 0])) # number of objs =  length of unique items of first column
+    train_y_dimension = sum(rig_dataset.filter(items=["dimension"]).values[:train_y_numObjs])[0] # get dimensions of each control and get sum of it
 
-    # get number of objs in first column and mult it with dimension of data
-    train_y_dimension = rig_dataset.filter(items=["dimension"]).values[0][0] * len(np.unique(rig_dataset.iloc[:, :1]))
-    rig_train_columns = [col for col in rig_dataset.columns.values if "_value" in col]
-    train_y = torch.from_numpy(np.array(rig_dataset.filter(items=rig_train_columns)).reshape(-1, train_y_dimension)).float()
-    #train_y = train_y[:, 3:]
-    #train_y_dimension = 9
+
+    raw_train_y = rig_dataset.iloc[:, 3:].values.tolist() # create list with entries of all attribute columns
+    cleaned_train_y = np.array([entry for row in raw_train_y for entry in row if str(entry) != "nan"]) # remove n/a entries from data
+    train_y = torch.from_numpy(cleaned_train_y.reshape(-1, train_y_dimension)).float() # reshape data to fit train_y_dimension
     train_y = train_y.to(device)
+
 
 
     class MultitaskGPModel(gpytorch.models.ExactGP):
@@ -153,7 +145,7 @@ def gpr(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv", anim_p
             ax_plot(axs[i], i, train_y[:, i], train_x_rot[:, i], predictions, 'Observed Values (Likelihood)', -50, 50)
         #ax_plot(axs[1], 1, train_y[:, 1], train_x[:, 0], predictions, 'Observed Values (Likelihood)', -40, 40)
         
-    
+
     return likelihood, model, x_trans_min, x_trans_max
 
 
