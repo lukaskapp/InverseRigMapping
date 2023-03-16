@@ -40,6 +40,8 @@ class IRM_UI(QtWidgets.QDialog):
         self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint)
 
+        self.new_window = None
+
         self.create_widgets()
         self.create_layouts()
         self.create_connections()
@@ -68,9 +70,16 @@ class IRM_UI(QtWidgets.QDialog):
 
 
     def prep_train_data(self):
-        import prep_training_data
-        reload(prep_training_data)
-        prep_training_data.prep_data()
+        import train_ui
+        reload(train_ui)     
+
+        if self.new_window:
+            self.new_window.destroy()
+
+        self.new_window = train_ui.Train_UI()
+        self.new_window.destroyed.connect(self.reset_new_window)
+        self.new_window.show()
+
 
 
     def train_model(self):
@@ -88,6 +97,9 @@ class IRM_UI(QtWidgets.QDialog):
         import apply_prediction
         reload(apply_prediction)
         apply_prediction.map_data()
+    
+    def reset_new_window(self):
+        self.new_window = None
 
 try:
     irm_dialog.close()

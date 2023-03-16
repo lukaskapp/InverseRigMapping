@@ -105,17 +105,25 @@ def check_for_rotation(attr_list):
     else:
         return False
 
-def prep_data():
-    if len(cmds.ls(sl=1)) == 0:
+
+
+##############################################################################################################################
+
+
+
+def prep_data(rig_input_data, jnt_input_data):
+    if len(rig_input_data) == 0 or len(rig_input_data) == 0:
         om.MGlobal.displayError("Nothing selected! Please select one control and one or more joints!")
         return
 
     # filter selection into joints and controls
-    ctrl_list = [ctrl for ctrl in cmds.ls(sl=1, typ="transform") if "_ctrl" in ctrl and not "_srtBuffer" in ctrl and query_visibility(ctrl)]
+    #ctrl_list = [ctrl for ctrl in cmds.ls(sl=1, typ="transform") if "_ctrl" in ctrl and not "_srtBuffer" in ctrl and query_visibility(ctrl)]
+    ctrl_list = [ctrl for ctrl in rig_input_data if query_visibility(ctrl)]
     ctrl_list.sort()
     print("CTRL LIST: ", ctrl_list)
 
-    jnt_list = [jnt for jnt in cmds.ls(sl=1, typ="joint") if "_bind" in jnt and not "_end_bind" in jnt]
+    #jnt_list = [jnt for jnt in cmds.ls(sl=1, typ="joint") if "_bind" in jnt and not "_end_bind" in jnt]
+    jnt_list = [jnt for jnt in jnt_input_data]
     jnt_list.sort()
     print("JNT LIST: ", jnt_list)
 
@@ -166,7 +174,7 @@ def prep_data():
     rig_data = []
     jnt_data = []
 
-    for i in range(3):
+    for i in range(500):
         for ctrl_index, ctrl in enumerate(ctrl_list):
             # only get integer and float attributes of selected control
             attr_list = get_all_attributes(ctrl)
@@ -210,7 +218,7 @@ def prep_data():
                 print("RAND MIN: ", rand_min)
                 print("RAND MAX: ", rand_max)
                 print("------------------------")
-                #cmds.setAttr("{}.{}".format(ctrl, attr), round(random.uniform(rand_min, rand_max), 5))
+                cmds.setAttr("{}.{}".format(ctrl, attr), round(random.uniform(rand_min, rand_max), 5))
 
 
 
