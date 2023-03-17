@@ -14,19 +14,17 @@ def prep_data():
         om.MGlobal.displayError("Nothing selected! Please select one or more joints!")
         return
 
-    if cmds.listRelatives(sel_jnt, ad=1, typ="joint"):
-        jnt_list = [obj for obj in cmds.listRelatives(sel_jnt, ad=1, typ="joint") if "_bind" in obj and not "_end_" in obj]
-        jnt_list.append(sel_jnt)
-        #jnt_list.reverse()
-        jnt_list.sort() # sort jnt list to match the train data from the "prep_training_data script"
-    else: 
-        jnt_list = [sel_jnt]
+
+    jnt_list = [jnt for jnt in cmds.ls(sl=1, typ="joint") if "_bind" in jnt and not "_end_bind" in jnt]
+    jnt_list.sort()
+    print("JNT LIST: ", jnt_list)
+
 
     anim_data = []
     current_frame = cmds.currentTime(q=1)
     frames = []
     for jnt in jnt_list:
-        frames.extend(list(set(cmds.keyframe(jnt, q=1))))    
+        frames.extend(list(set(cmds.keyframe(jnt, q=1))))
     frames = list(set(frames))
 
     for i, jnt in enumerate(jnt_list):
@@ -44,15 +42,12 @@ def prep_data():
     
     cmds.currentTime(current_frame)
     print("FRAMES: ", frames)
-    #header = ["No.", "jointName", "translateX", "translateY", "translateZ",
-    #                                "rotate_00", "rotate_01", "rotate_02",
-    #                                "rotate_10", "rotate_11", "rotate_12",
-    #                                "rotate_20", "rotate_21", "rotate_22"]
+
 
     header = ["No.", "jointName",
-                                    "rotate_00", "rotate_01", "rotate_02",
-                                    "rotate_10", "rotate_11", "rotate_12",
-                                    "rotate_20", "rotate_21", "rotate_22"]
+                                "rotMtx_00", "rotMtx_01", "rotMtx_02",
+                                "rotMtx_10", "rotMtx_11", "rotMtx_12",
+                                "rotMtx_20", "rotMtx_21", "rotMtx_22"]
 
 
     print("DATA: ", anim_data)
@@ -66,7 +61,6 @@ def prep_data():
         writer.writerows(anim_data)
 
     return fullpath.as_posix(), frames
-
 
 
 if __name__ == "__main__":

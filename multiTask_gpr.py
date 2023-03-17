@@ -100,7 +100,7 @@ def gpr(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv", anim_p
     # "Loss" for GPs - the marginal log likelihood
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
-    training_iterations = 500
+    training_iterations = 100
     for i in range(training_iterations):
         optimizer.zero_grad()
         output = model(train_x_norm)
