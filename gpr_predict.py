@@ -7,7 +7,6 @@ import csv
 from importlib import reload
 import pathlib
 import os
-#import modelList_gpr as gpr
 import multiTask_gpr as gpr
 reload(gpr)
 
@@ -16,15 +15,35 @@ reload(gpr)
 if torch.cuda.is_available(): 
     dev = "cuda:0" 
 else: 
-    dev = "cpu" 
+    dev = "cpu"
+dev = "cpu" 
 device = torch.device(dev)
+
 
 #anim_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "irm_anim_data.csv")
 
+
 def predict_data(anim_path):
-    likelihood, model, x_trans_min, x_trans_max = gpr.gpr()
+    # load trained model
+    rig_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig", "irm_rig_data.csv")
+    jnt_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt", "irm_jnt_data.csv")
+    train_x = gpr.build_train_x_tensor(jnt_file)
+    train_y, train_y_dimension = gpr.build_train_y_tensor(rig_file)
+
+    #likelihood, model, x_trans_min, x_trans_max = gpr.gpr()
+    model_file = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model.pt")
+    state_dict = torch.load(model_file)
+
+    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=train_y_dimension)
     likelihood.to(device)
+
+    model = gpr.MultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
     model.to(device)
+    model.load_state_dict(state_dict)
+    model.eval()
+    likelihood.eval()
+
+
 
     # load anim data
     anim_dataset = pd.read_csv(anim_path, na_values='?', comment='\t', sep=',', skipinitialspace=True, header=[0])
@@ -52,13 +71,13 @@ def predict_data(anim_path):
     new_min, new_max = -1.0, 1.0
 
     #x_trans_min, x_trans_max = -40.0, 40.0
-    anim_x_trans_norm = (anim_x_trans - x_trans_min) / (x_trans_max - x_trans_min) * (new_max - new_min) + new_min
+    #anim_x_trans_norm = (anim_x_trans - x_trans_min) / (x_trans_max - x_trans_min) * (new_max - new_min) + new_min
 
     #x_rot_min, x_rot_max = anim_x_rot.min(), anim_x_rot.max()
     #anim_x_rot_norm = (anim_x_rot - x_rot_min) / (x_rot_max - x_rot_min) * (new_max - new_min) + new_min
 
 
-    anim_x_norm = torch.cat((anim_x_trans_norm, anim_x_rot), -1).reshape(-1, mean_depth)
+    #anim_x_norm = torch.cat((anim_x_trans_norm, anim_x_rot), -1).reshape(-1, mean_depth)
     anim_x_norm = anim_x
 
 
