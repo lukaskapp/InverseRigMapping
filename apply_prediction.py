@@ -47,40 +47,34 @@ def map_data():
         header = next(reader, None) # skip header
         
         predict_data = [row for row in reader if len(row) != 0]
-        print(predict_data)
-        for x in predict_data:
-            print(x)
+        ctrl_depth = len(list(dict.fromkeys([int(n[0]) for n in predict_data])))
 
-        ctrl_depth = list(dict.fromkeys([int(n[0]) for n in predict_data]))
-
-        values_list = []
-        for n in ctrl_depth:
-            values_list.append([values for values in predict_data if int(values[0]) == n])
-            
         current_frame = cmds.currentTime(q=1)
-        
-        for i, frame in enumerate(frames):
-            for n in ctrl_depth:                        
-                print(n)
-                ctrl = values_list[n][i][1]
-                cmds.currentTime(frame)
-                for x, attr in enumerate(header[2:5]):
-                    print("SET:  ", "{}.{}".format(ctrl, attr), float(values_list[n][i][2+x]))
-                    cmds.setAttr("{}.{}".format(ctrl, attr), float(values_list[n][i][2+x]))
-                    cmds.setKeyframe(ctrl, t=frame, at=attr, v=float(values_list[n][i][2+x]))
+        for i, data in enumerate(predict_data):
+            ctrl = data[1]
+            values = data[3:]
+            # predict data is ctrl depth times frames
+            # so need to divide i with ctrl depth to get current anim frame
+            frame = frames[math.floor(i/ctrl_depth)]
+            rotMtx = []
+            for value in values:
+                if value != "nan":
+                    attr_name = header[data.index(value)]
+                    if "rotMtx_" in attr_name:
+                        rotMtx.append(value)
+                        continue
+                    cmds.setAttr("{}.{}".format(ctrl, attr_name), float(value))
+                    cmds.setKeyframe(ctrl, t=frame, at=attr_name, v=float(value))
 
-                    
-                
-                offset = 5
-                mtx = pm.dt.TransformationMatrix((float(values_list[n][i][offset+0]), float(values_list[n][i][offset+1]), float(values_list[n][i][offset+2]), 0.0,
-                                                float(values_list[n][i][offset+3]), float(values_list[n][i][offset+4]), float(values_list[n][i][offset+5]), 0.0,
-                                                float(values_list[n][i][offset+6]), float(values_list[n][i][offset+7]), float(values_list[n][i][offset+8]), 0.0,
+            if rotMtx:
+                mtx = pm.dt.TransformationMatrix((float(rotMtx[0]), float(rotMtx[1]), float(rotMtx[2]), 0.0,
+                                                float(rotMtx[3]), float(rotMtx[4]), float(rotMtx[5]), 0.0,
+                                                float(rotMtx[6]), float(rotMtx[7]), float(rotMtx[8]), 0.0,
                                                 0.0, 0.0, 0.0, 1.0)).euler
                 rot = [math.degrees(mtx[0]), math.degrees(mtx[1]), math.degrees(mtx[2])]
                 
                 for attr in ["rx", "ry", "rz"]:
                     cmds.xform(ctrl, ro=rot, os=1)
-                    #cmds.xform(ctrl, m=mtx.__melobject__(), os=1) # will override translation values due to 0 values in mtx
                     value = cmds.getAttr("{}.{}".format(ctrl, attr))
                     cmds.setKeyframe(ctrl, t=frame, at=attr, v=float(value))
 
@@ -89,10 +83,8 @@ def map_data():
                     cmds.setAttr("{}.shearXZ".format(ctrl), 0.0)
                     cmds.setAttr("{}.shearYZ".format(ctrl), 0.0)
                 
-
         cmds.currentTime(current_frame)
-        
-
+            
     
-if __name__ == "__main__":
-    map_data()
+#if __name__ == "__main__":
+#    map_data()
