@@ -120,12 +120,12 @@ def prep_data(rig_input_data, jnt_input_data):
     #ctrl_list = [ctrl for ctrl in cmds.ls(sl=1, typ="transform") if "_ctrl" in ctrl and not "_srtBuffer" in ctrl and query_visibility(ctrl)]
     ctrl_list = [ctrl for ctrl in rig_input_data if query_visibility(ctrl)]
     ctrl_list.sort()
-    print("CTRL LIST: ", ctrl_list)
+    #print("CTRL LIST: ", ctrl_list)
 
     #jnt_list = [jnt for jnt in cmds.ls(sl=1, typ="joint") if "_bind" in jnt and not "_end_bind" in jnt]
     jnt_list = [jnt for jnt in jnt_input_data]
     jnt_list.sort()
-    print("JNT LIST: ", jnt_list)
+    #print("JNT LIST: ", jnt_list)
 
 
     for ctrl in ctrl_list:
@@ -139,7 +139,7 @@ def prep_data(rig_input_data, jnt_input_data):
         ctrl_unique_attrs = list(set(ctrl_unique_attrs).difference(["rotateX", "rotateY", "rotateZ"]))
         ctrl_unique_attrs.append("rot_mtx")
     ctrl_unique_attrs.sort() # reoder list to make it independent of control selection
-    print("CTRL UNIQUE", ctrl_unique_attrs)
+    #print("CTRL UNIQUE", ctrl_unique_attrs)
 
 
     # filter attributes that have incoming connections
@@ -151,7 +151,7 @@ def prep_data(rig_input_data, jnt_input_data):
             if check_source_connection(jnt, attr):
                 attr_defaults[attr] = cmds.getAttr("{}.{}".format(jnt, attr))
         jnt_defaults[jnt] = attr_defaults
-    print("JNT DEFAULTS", jnt_defaults)
+    #print("JNTDEFAULTS", jnt_defaults)
 
     # list all unique attrs across all joints / controls - that will define the amount of column headers
     jnt_unique_attrs = list(set([jnt_attr for jnt_default in jnt_defaults.values() for jnt_attr in jnt_default.keys()]))
@@ -159,7 +159,7 @@ def prep_data(rig_input_data, jnt_input_data):
         jnt_unique_attrs = list(set(jnt_unique_attrs).difference(["rotateX", "rotateY", "rotateZ"]))
         jnt_unique_attrs.append("rot_mtx")
     jnt_unique_attrs.sort() # reoder list to make it independent of joint selection
-    print("JNT UNIQUE", jnt_unique_attrs)
+    #print("JNT UNIQUE", jnt_unique_attrs)
 
     
     # build data header based on unique attrs of controls and joints
@@ -167,30 +167,32 @@ def prep_data(rig_input_data, jnt_input_data):
     jnt_header = build_header(base_header=["No.", "jointName", "dimension"], attr_list=jnt_unique_attrs)
 
 
-    print("")
-    print("-----------------------------------------------------------")
-    print("")
+    #print("")
+    #print("-----------------------------------------------------------")
+    #print("")
 
     rig_data = []
     jnt_data = []
 
-    for i in range(500):
+    iterations = 1000
+    for i in range(iterations):
+        print("Progress: {}/{}".format(str(i+1).zfill(4), iterations))
         for ctrl_index, ctrl in enumerate(ctrl_list):
             # only get integer and float attributes of selected control
             attr_list = get_all_attributes(ctrl)
-            print("ATTR LIST: ", attr_list)
+            #print("ATTR LIST: ", attr_list)
             
             
             # check if rotation is in attr list
             rotation = check_for_rotation(attr_list)
-            print("ROT: ", rotation)
+            #print("ROT: ", rotation)
 
             # set dimension to length of attr_list; if rotate in list, remove rotate and add matrix3 (9 dimension)
             attr_dimension = get_attr_dimension(attr_list, rotation)
 
             
-            print("DIMENSION: ", attr_dimension)
-            print("-----------------------------------------------------------")
+            #print("DIMENSION: ", attr_dimension)
+            #print("-----------------------------------------------------------")
 
 
             default_rand_min = -50
@@ -214,10 +216,10 @@ def prep_data(rig_input_data, jnt_input_data):
                 elif attr in ["scaleX", "scaleY", "scaleZ"]:
                     rand_min, rand_max = check_transformLimit(ctrl, axis=attr, default_min=0.01, default_max=10)
 
-                print("ATTR: ", attr)
-                print("RAND MIN: ", rand_min)
-                print("RAND MAX: ", rand_max)
-                print("------------------------")
+                #print("ATTR: ", attr)
+                #print("RAND MIN: ", rand_min)
+                #print("RAND MAX: ", rand_max)
+                #print("------------------------")
                 cmds.setAttr("{}.{}".format(ctrl, attr), round(random.uniform(rand_min, rand_max), 5))
 
 
@@ -241,11 +243,11 @@ def prep_data(rig_input_data, jnt_input_data):
 
 
             rig_data.append(rig_data_add)
-            print("RIG DATA ADD: ", rig_data_add)
+            #print("RIG DATA ADD: ", rig_data_add)
 
-            print("")
-            print("-----------------------------------------------------------")
-            print("")
+            #print("")
+            #print("-----------------------------------------------------------")
+            #print("")
 
         for y, jnt in enumerate(jnt_list):
             attr_list = [attr for attr in get_all_attributes(jnt, unlocked=False) if check_source_connection(jnt, attr)]

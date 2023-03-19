@@ -95,12 +95,12 @@ def gpr(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv", anim_p
     likelihood.train()
 
     # Use the adam optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.3)  # lr = learning rate
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)  # lr = learning rate
 
     # "Loss" for GPs - the marginal log likelihood
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
-    training_iterations = 100
+    training_iterations = 500
     for i in range(training_iterations):
         optimizer.zero_grad()
         output = model(train_x_norm)
