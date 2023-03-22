@@ -3,13 +3,12 @@ import torch
 import gpytorch
 import numpy as np
 import pandas as pd
-import csv
 from matplotlib import pyplot as plt
-#import multiquadric_kernel as mqk
 from importlib import reload
 import pathlib
 import os
 
+#import multiquadric_kernel as mqk
 #reload(mqk)
 
 # enable GPU/CUDA if available
@@ -44,26 +43,34 @@ def build_train_x_tensor(jnt_file):
     jnt_dataset = pd.read_csv(jnt_file, na_values='?', comment='\t', sep=',', skipinitialspace=True, header=[0])
 
     train_x_numObjs = len(np.unique(jnt_dataset.iloc[:, 0])) # number of objs =  length of unique items of first column
-    train_x_dimension = sum(jnt_dataset.filter(items=["dimension"]).values[:train_x_numObjs])[0] # get dimensions of each control and get sum of it
-    train_x = torch.from_numpy(np.array(jnt_dataset.iloc[:, 3:]).reshape(-1, train_x_dimension)).float()
-    train_x = train_x.to(device)
-    train_x_trans = train_x[:, :3]
-    train_x_rot = train_x[:, 3:]
-
-
-    # normalize inputs to range -1.0 1.0
+    train_x_dimension = sum(jnt_dataset.filter(items=["dimension"]).values[:train_x_numObjs])[0] # get dimensions of each obj and get sum of it
+    
+    raw_train_x = jnt_dataset.iloc[:, 3:].values.tolist() # create list with entries of all attribute columns
+    
+    
+    # normalisation: -1.0 to 1.0
+    attr_list = jnt_dataset.columns.values[3:].tolist()
+    normalise_index_list = [attr_list.index(attr) for attr in attr_list if not "rotMtx_" in attr]
+    
+    #train_x_min, train_x_max = -170.0, 35.0
+    train_x_min, train_x_max = -50.0, 200.0
+    #train_x_min, train_x_max = -50.0, 50.0
+    #train_x_min, train_x_max = train_x_trans.min(), train_x_trans.max()
     new_min, new_max = -1.0, 1.0
 
-    x_trans_min, x_trans_max = train_x_trans.min(), train_x_trans.max()
-    train_x_trans_norm = (train_x_trans - x_trans_min) / (x_trans_max - x_trans_min) * (new_max - new_min) + new_min
-        
-    #x_rot_min, x_rot_max = train_x_rot.min(), train_x_rot.max()
-    #train_x_rot_norm = (train_x_rot - x_rot_min) / (x_rot_max - x_rot_min) * (new_max - new_min) + new_min
-        
-    #train_x_norm = torch.cat((train_x_trans_norm, train_x_rot), 1)
-    train_x_norm = train_x
+    normalised_train_x = raw_train_x
+    for entry_index, entry in enumerate(normalised_train_x):
+        for value_index, value in enumerate(entry):
+            if value_index in normalise_index_list:
+                value_norm = (value - train_x_min) / (train_x_max - train_x_min) * (new_max - new_min) + new_min
+                normalised_train_x[entry_index][value_index] = value_norm
+    
+    cleaned_train_x = np.array([entry for row in normalised_train_x for entry in row if str(entry) != "nan"]) # remove n/a entries from data
+    train_x = torch.from_numpy(cleaned_train_x.reshape(-1, train_x_dimension)).half()
+    train_x = train_x.to(device)
+   
 
-    return train_x_norm
+    return train_x
 
 
 def build_train_y_tensor(rig_file):
@@ -75,7 +82,7 @@ def build_train_y_tensor(rig_file):
 
     raw_train_y = rig_dataset.iloc[:, 3:].values.tolist() # create list with entries of all attribute columns
     cleaned_train_y = np.array([entry for row in raw_train_y for entry in row if str(entry) != "nan"]) # remove n/a entries from data
-    train_y = torch.from_numpy(cleaned_train_y.reshape(-1, train_y_dimension)).float() # reshape data to fit train_y_dimension
+    train_y = torch.from_numpy(cleaned_train_y.reshape(-1, train_y_dimension)).half() # reshape data to fit train_y_dimension
     train_y = train_y.to(device)
 
     return train_y, train_y_dimension
@@ -88,7 +95,7 @@ def plot_data():
 
     with torch.no_grad(), gpytorch.settings.fast_pred_var():
         test_x_tensor = [torch.linspace(train_x_rot.min().cpu(), train_x_rot.max().cpu(), 100) for i in range(train_x_dimension)]
-        test_x = torch.stack(test_x_tensor, -1).float()
+        test_x = torch.stack(test_x_tensor, -1).half()
         test_x = test_x.to(device)
         predictions = likelihood(model(test_x))
 
@@ -133,12 +140,12 @@ def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv"
     likelihood.train()
 
     # Use the adam optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)  # lr = learning rate
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.3)  # lr = learning rate
 
     # "Loss" for GPs - the marginal log likelihood
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
-    training_iterations = 50
+    training_iterations = 500
     for i in range(training_iterations):
         optimizer.zero_grad()
         output = model(train_x)
