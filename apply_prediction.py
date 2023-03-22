@@ -3,13 +3,12 @@ import pymel.core as pm
 import maya.api.OpenMaya as om
 import math
 import csv
-import prep_anim_data
 from importlib import reload
 import pathlib
 import os
 import subprocess
 
-
+import prep_anim_data
 reload(prep_anim_data)
 
 
