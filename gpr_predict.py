@@ -61,8 +61,8 @@ def predict_data(anim_path):
     normalise_index_list = [attr_list.index(attr) for attr in attr_list if not "rotMtx_" in attr]
 
     #anim_x_min, anim_x_max = -170.0, 35.0
-    anim_x_min, anim_x_max = -50.0, 200.0
-    #anim_x_min, anim_x_max = -50.0, 50.0
+    #anim_x_min, anim_x_max = -50.0, 200.0
+    anim_x_min, anim_x_max = -50.0, 50.0
     new_min, new_max = -1.0, 1.0
 
     normalised_anim_x = raw_anim_x

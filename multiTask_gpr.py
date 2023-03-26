@@ -53,8 +53,8 @@ def build_train_x_tensor(jnt_file):
     normalise_index_list = [attr_list.index(attr) for attr in attr_list if not "rotMtx_" in attr]
     
     #train_x_min, train_x_max = -170.0, 35.0
-    train_x_min, train_x_max = -50.0, 200.0
-    #train_x_min, train_x_max = -50.0, 50.0
+    #train_x_min, train_x_max = -50.0, 200.0
+    train_x_min, train_x_max = -50.0, 50.0
     #train_x_min, train_x_max = train_x_trans.min(), train_x_trans.max()
     new_min, new_max = -1.0, 1.0
 
@@ -86,7 +86,6 @@ def build_train_y_tensor(rig_file):
     train_y = train_y.to(device)
 
     return train_y, train_y_dimension
-
 
 def plot_data():
     num_of_plots = 3
@@ -140,7 +139,7 @@ def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv"
     likelihood.train()
 
     # Use the adam optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.3)  # lr = learning rate
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)  # lr = learning rate
 
     # "Loss" for GPs - the marginal log likelihood
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
