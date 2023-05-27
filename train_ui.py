@@ -50,7 +50,7 @@ class Train_UI(QtWidgets.QDialog):
 
             
         self.rig_table = QtWidgets.QTableWidget(0, 3)
-        self.rig_table.setHorizontalHeaderLabels(['Control Name', 'Min', 'Max'])
+        self.rig_table.setHorizontalHeaderLabels(['Control Name'])
         self.rig_table.verticalHeader().setVisible(False)
 
 

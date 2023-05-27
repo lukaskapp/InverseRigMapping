@@ -10,7 +10,7 @@ import os
 import torch.autograd.profiler as profiler
 
 
-import multiTask_gpr as gpr
+import gpr_model as gpr
 reload(gpr)
 
 
@@ -19,7 +19,7 @@ if torch.cuda.is_available():
     dev = "cuda:0" 
 else: 
     dev = "cpu"
-dev = "cpu" 
+#dev = "cpu" 
 device = torch.device(dev)
 
 
@@ -39,7 +39,8 @@ def predict_data(anim_path):
     likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=train_y_dimension)
     likelihood.to(device)
 
-    model = gpr.MultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
+    #model = gpr.MultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
+    model = gpr.BatchIndependentMultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
     model.to(device)
     model.load_state_dict(state_dict)
     model.eval()
@@ -61,8 +62,8 @@ def predict_data(anim_path):
     normalise_index_list = [attr_list.index(attr) for attr in attr_list if not "rotMtx_" in attr]
 
     #anim_x_min, anim_x_max = -170.0, 35.0
-    anim_x_min, anim_x_max = -50.0, 200.0
-    #anim_x_min, anim_x_max = -50.0, 50.0
+    #anim_x_min, anim_x_max = -50.0, 200.0
+    anim_x_min, anim_x_max = -50.0, 50.0
     new_min, new_max = -1.0, 1.0
 
     normalised_anim_x = raw_anim_x
@@ -80,12 +81,15 @@ def predict_data(anim_path):
     # get predict values from trained model
     #anim_x_norm = torch.randn(2, 210)
     predict_mean = []
-    with torch.no_grad():
-        for tensor in anim_x_norm:
-            predict_y = likelihood(model(tensor.reshape(1, -1)))
-            predict_mean.append(predict_y.mean.reshape(-1).tolist())
+    with torch.no_grad(), gpytorch.settings.fast_pred_var():
+        #for tensor in anim_x_norm:
+        #    print("TENSOR")
+        #    predict_y = likelihood(model(tensor.reshape(1, -1)))
+        #    predict_mean.append(predict_y.mean.reshape(-1).tolist())
+        predict_y = likelihood(model(anim_x_norm))
+        predict_mean = predict_y.mean.tolist()
 
-
+    print("DONE")
     # get rig dataset used in training for building predict data
     rig_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig", "irm_rig_data.csv")
     train_rig_df = pd.read_csv(rig_file, na_values='?', comment='\t', sep=',', skipinitialspace=True, header=[0])

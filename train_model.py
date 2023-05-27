@@ -9,7 +9,7 @@ def train_model(train_data="irm_rig_data.csv"):
     py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
     py_app = pathlib.PurePath(py_path.parent, pathlib.Path("venv/Scripts/python.exe")).as_posix()
 
-    py_cmd = "import sys; sys.path.append('{}'); import gpr; gpr.gpr('{}')".format(py_path, train_data)
+    py_cmd = "import sys; sys.path.append('{}'); import gpr_model as gpr; gpr.train_model()".format(py_path)
     
     command = [py_app, "-c", py_cmd]
     print(command)

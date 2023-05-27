@@ -75,7 +75,8 @@ def prep_data(rig_input_data, jnt_input_data):
     iterations = 2500
     for i in range(iterations):
         #print("Progress: {}/{}".format(str(i+1).zfill(4), iterations))
-        print("Progress: {}%".format(round(((float(i+1))/iterations)*100, 2)))
+        om.MGlobal.displayInfo("Progress: {}%".format(round(((float(i+1))/iterations)*100, 2)))
+        #print("Progress: {}%".format(round(((float(i+1))/iterations)*100, 2)))
         for ctrl_index, ctrl in enumerate(ctrl_list):
             # only get integer and float attributes of selected control
             attr_list = mUtils.get_all_attributes(ctrl)
@@ -95,8 +96,8 @@ def prep_data(rig_input_data, jnt_input_data):
 
 
             #default_rand_min, default_rand_max = -170.0, 35.0
-            default_rand_min, default_rand_max = -50.0, 220.0
-            #default_rand_min, default_rand_max = -50.0, 50.0
+            #default_rand_min, default_rand_max = -50.0, 220.0
+            default_rand_min, default_rand_max = -50.0, 50.0
             random.seed(i+ctrl_index)
             for attr in attr_list:
                 if cmds.attributeQuery(attr, node=ctrl, minExists=1) or cmds.attributeQuery(attr, node=ctrl, maxExists=1): # if min or max range exists, use those as new values for rand min/max
