@@ -9,14 +9,6 @@ import pathlib
 import os
 from torch.cuda.amp import autocast, GradScaler
 
-import utils.multiquadric_kernel as mqk
-reload(mqk)
-
-import utils.dataLoader as dataLoader
-reload(dataLoader)
-
-import utils.fps as fps
-reload(fps)
 
 # enable GPU/CUDA if available
 if torch.cuda.is_available(): 
@@ -26,30 +18,55 @@ else:
 #dev = "cpu" 
 device = torch.device(dev)
 
+def farthest_point_sampling(points, k):
+    """Farthest Point Sampling (FPS) algorithm.
+    
+    Args:
+        points (np.ndarray or torch.Tensor): The dataset to subsample from, with shape (N, D).
+        k (int): The number of points to select.
+        
+    Returns:
+        np.ndarray or torch.Tensor: The selected points, with shape (k, D).
+    """
+    if isinstance(points, torch.Tensor):
+        points = points.cpu().numpy()
+    
+    N, D = points.shape
+    selected_indices = [np.random.randint(N)]  # Start with a random point
+    distances = np.full((N,), np.inf)
+
+    for _ in range(k - 1):
+        # Compute distances to the last selected point
+        new_distances = np.linalg.norm(points - points[selected_indices[-1]], axis=1)
+        
+        # Update the minimum distances
+        np.minimum(distances, new_distances, out=distances)
+        
+        # Select the point with the largest minimum distance
+        selected_indices.append(np.argmax(distances))
+    
+    return points[selected_indices]
 
 
-class MultitaskGPModel(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood, train_y_dimension):
-        super(MultitaskGPModel, self).__init__(train_x, train_y, likelihood)
-        self.mean_module = gpytorch.means.MultitaskMean(
-            gpytorch.means.ConstantMean(), num_tasks=train_y_dimension
-        )
-        self.covar_module = gpytorch.kernels.MultitaskKernel(
-            gpytorch.kernels.RBFKernel(), num_tasks=train_y_dimension, rank=1
-        )
+class IrmDataLoader(torch.utils.data.Dataset):
+    def __init__(self, input_data, target_data):
+        self.input_data = input_data
+        self.target_data = target_data
+        
+    def __len__(self):
+        return len(self.input_data)
 
-    def forward(self, x):
-        mean_x = self.mean_module(x)
-        covar_x = self.covar_module(x)
-        return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
-
+    def __getitem__(self, index):
+        x = self.input_data[index]
+        y = self.target_data[index]
+        return x, y
 
 class BatchIndependentMultitaskGPModel(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, train_y_dimension):
         super().__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean(batch_shape=torch.Size([train_y_dimension]))
         self.covar_module = gpytorch.kernels.ScaleKernel(
-            mqk.MultiquadricKernel(batch_shape=torch.Size([train_y_dimension])),
+            MultiquadricKernel(batch_shape=torch.Size([train_y_dimension])),
             batch_shape=torch.Size([train_y_dimension])
         )
 
@@ -111,41 +128,7 @@ def build_train_y_tensor(rig_file):
     return train_y, train_y_dimension
 
 
-def plot_data():
-    num_of_plots = 3
-    # Initialize plots
-    f, axs = plt.subplots(num_of_plots, 1, figsize=(7.5, 5*num_of_plots))
 
-    with torch.no_grad(), gpytorch.settings.fast_pred_var():
-        test_x_tensor = [torch.linspace(train_x_rot.min().cpu(), train_x_rot.max().cpu(), 100) for i in range(train_x_dimension)]
-        test_x = torch.stack(test_x_tensor, -1).half()
-        test_x = test_x.to(device)
-        predictions = likelihood(model(test_x))
-
-    # Define plotting function
-    def ax_plot(ax, index, train_y, train_x, prediction, title, min_y, max_y):
-        # Get lower and upper confidence bounds
-        lower, upper = prediction.confidence_region()
-        mean = prediction.mean
-        # Plot training data as black stars
-        ax.plot(train_x.detach().cpu().numpy(), train_y.detach().cpu().numpy(), 'k*')
-        # Predictive mean as blue line
-        ax.plot(test_x[:, index].detach().cpu().numpy(), mean[:, index].detach().cpu().numpy(), 'b')
-        # Shade in confidence
-        ax.fill_between(test_x[:, index].detach().cpu().numpy(), lower[:, index].detach().cpu().numpy(), upper[:, index].detach().cpu().numpy(), alpha=0.5)
-        ax.set_ylim([min_y, max_y])
-        ax.legend(['Observed Data', 'Mean', 'Confidence'])
-        ax.set_title(title)
-
-    # Plot both tasks
-    for i in range(num_of_plots):
-        ax_plot(axs[i], i, train_y[:, i], train_x_rot[:, i], predictions, 'Observed Values (Likelihood)', -50, 50)
-    #ax_plot(axs[1], 1, train_y[:, 1], train_x[:, 0], predictions, 'Observed Values (Likelihood)', -40, 40)
-
-
-#rig_fileName="irm_rig_data.csv"
-#jnt_fileName="irm_jnt_data.csv"
-#model_file="trained_model.pt"
 def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv",  model_file="trained_model.pt"):
     rig_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig", rig_fileName)
     jnt_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt", jnt_fileName)
@@ -158,13 +141,13 @@ def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv"
     train_y = train_y.cpu().numpy()
 
     k = 10
-    train_x_subsampled_indices = fps.farthest_point_sampling(train_x, k)
+    train_x_subsampled_indices = farthest_point_sampling(train_x, k)
     train_x_subsampled = train_x.index_select(0, torch.tensor(train_x_subsampled_indices))
     train_y_subsampled = train_y.index_select(0, torch.tensor(train_x_subsampled_indices))
 
 
 
-    #dataset = dataLoader.IrmDataLoader(train_x, train_y)
+    #dataset = IrmDataLoader(train_x, train_y)
     train_dataset = torch.utils.data.TensorDataset(train_x_subsampled, train_y_subsampled)
 
     dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True)
@@ -229,5 +212,47 @@ def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv"
 
 
 
-if __name__ == "__main__":
-    train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv", model_file="trained_model.pt")
+class MultiquadricKernel(gpytorch.kernels.Kernel):
+    has_lengthscale = True
+    
+    def __init__(
+        self,
+        batch_shape=torch.Size(),
+        lengthscale_prior=None,
+        lengthscale_constraint=None,
+        **kwargs
+    ):
+        super().__init__(
+            has_lengthscale=self.has_lengthscale,
+            batch_shape=batch_shape,
+            **kwargs
+        )
+        
+        if lengthscale_constraint is None:
+            lengthscale_constraint = gpytorch.constraints.Positive()
+            
+        self.raw_lengthscale = torch.nn.Parameter(torch.zeros(*batch_shape, 1))
+        self.lengthscale_constraint = lengthscale_constraint
+        self.register_parameter(
+            name="raw_lengthscale",
+            parameter=self.raw_lengthscale
+        )
+        
+        if lengthscale_prior is not None:
+            self.register_prior(
+                "lengthscale_prior",
+                lengthscale_prior,
+                lambda: self.lengthscale,
+                lambda v: self._set_lengthscale(v),
+            )
+            
+        self.lengthscale = self.lengthscale_constraint.transform(self.raw_lengthscale)
+        
+    def forward(self, x1, x2, diag=False, **params):
+        lengthscale = self.lengthscale.unsqueeze(-1)
+        x1_ = x1.div(lengthscale)
+        x2_ = x2.div(lengthscale)
+        if diag:
+            return ((x1_ - x2_) ** 2).sum(dim=-1).sqrt()
+        else:
+            return ((x1_.unsqueeze(-2) - x2_.unsqueeze(-3)) ** 2).sum(dim=-1).sqrt()
