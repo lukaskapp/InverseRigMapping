@@ -72,7 +72,7 @@ def prep_data(rig_input_data, jnt_input_data):
     rig_data = []
     jnt_data = []
 
-    iterations = 2500
+    iterations = 2000
     for i in range(iterations):
         #print("Progress: {}/{}".format(str(i+1).zfill(4), iterations))
         om.MGlobal.displayInfo("Progress: {}%".format(round(((float(i+1))/iterations)*100, 2)))

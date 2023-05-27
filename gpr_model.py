@@ -110,7 +110,6 @@ def build_train_y_tensor(rig_file):
 
     return train_y, train_y_dimension
 
-
 def plot_data():
     num_of_plots = 3
     # Initialize plots
