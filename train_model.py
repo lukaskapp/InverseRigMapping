@@ -5,7 +5,7 @@ import pathlib
 import maya.api.OpenMaya as om
 
 
-def train_model(train_data="irm_rig_data.csv"):
+def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv",  model_file="trained_model.pt"):
     py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
     py_app = pathlib.PurePath(py_path.parent, pathlib.Path("venv/Scripts/python.exe")).as_posix()
 

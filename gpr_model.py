@@ -23,33 +23,20 @@ if torch.cuda.is_available():
     dev = "cuda:0" 
 else: 
     dev = "cpu" 
-#dev = "cpu" 
+dev = "cpu" 
 device = torch.device(dev)
 
-
-
-class MultitaskGPModel(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood, train_y_dimension):
-        super(MultitaskGPModel, self).__init__(train_x, train_y, likelihood)
-        self.mean_module = gpytorch.means.MultitaskMean(
-            gpytorch.means.ConstantMean(), num_tasks=train_y_dimension
-        )
-        self.covar_module = gpytorch.kernels.MultitaskKernel(
-            gpytorch.kernels.RBFKernel(), num_tasks=train_y_dimension, rank=1
-        )
-
-    def forward(self, x):
-        mean_x = self.mean_module(x)
-        covar_x = self.covar_module(x)
-        return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
 
 
 class BatchIndependentMultitaskGPModel(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, train_y_dimension):
         super().__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean(batch_shape=torch.Size([train_y_dimension]))
+        #self.covar_module = gpytorch.kernels.ScaleKernel(
+        #    mqk.MultiquadricKernel(batch_shape=torch.Size([train_y_dimension])),
+        #    batch_shape=torch.Size([train_y_dimension])
         self.covar_module = gpytorch.kernels.ScaleKernel(
-            mqk.MultiquadricKernel(batch_shape=torch.Size([train_y_dimension])),
+            gpytorch.kernels.RBFKernel(batch_shape=torch.Size([train_y_dimension])),
             batch_shape=torch.Size([train_y_dimension])
         )
 
@@ -59,6 +46,25 @@ class BatchIndependentMultitaskGPModel(gpytorch.models.ExactGP):
         return gpytorch.distributions.MultitaskMultivariateNormal.from_batch_mvn(
             gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
         )
+
+
+def matrix_to_6d(rot_mat):
+    # Use the first two columns of the rotation matrix to get the 6D representation
+    return rot_mat[:, :2].reshape(-1)
+
+
+def convert_tensor_to_6d(tensor, numObjs):
+    tensor_rotMtx = tensor.reshape(-1, numObjs, 3, 3)
+    tensor_6d = []
+    for entry in tensor_rotMtx:
+        temp = []
+        for obj in entry:
+            rot_6d = matrix_to_6d(obj)
+            temp.append(rot_6d.cpu().numpy())
+        tensor_6d.append(temp)
+    out_tensor = torch.from_numpy(np.array(tensor_6d)).float()
+
+    return out_tensor
 
 
 def build_train_x_tensor(jnt_file):
@@ -89,10 +95,11 @@ def build_train_x_tensor(jnt_file):
                 normalised_train_x[entry_index][value_index] = value_norm
     
     cleaned_train_x = np.array([entry for row in normalised_train_x for entry in row if str(entry) != "nan"]) # remove n/a entries from data
-    train_x = torch.from_numpy(cleaned_train_x.reshape(-1, train_x_dimension)).float()
+    train_x_rotMtx = torch.from_numpy(cleaned_train_x.reshape(-1, train_x_dimension)).float()
+    
+    train_x = convert_tensor_to_6d(train_x_rotMtx, train_x_numObjs).reshape(-1, train_x_dimension-train_x_numObjs*3)
     train_x = train_x.to(device)
    
-
     return train_x
 
 
@@ -105,10 +112,14 @@ def build_train_y_tensor(rig_file):
 
     raw_train_y = rig_dataset.iloc[:, 3:].values.tolist() # create list with entries of all attribute columns
     cleaned_train_y = np.array([entry for row in raw_train_y for entry in row if str(entry) != "nan"]) # remove n/a entries from data
-    train_y = torch.from_numpy(cleaned_train_y.reshape(-1, train_y_dimension)).float() # reshape data to fit train_y_dimension
+    train_y_rotMtx = torch.from_numpy(cleaned_train_y.reshape(-1, train_y_dimension)).float() # reshape data to fit train_y_dimension
+    
+    train_y = convert_tensor_to_6d(train_y_rotMtx, train_y_numObjs).reshape(-1, train_y_dimension-train_y_numObjs*3)
     train_y = train_y.to(device)
 
-    return train_y, train_y_dimension
+    return train_y, train_y_dimension-train_y_numObjs*3
+
+
 
 def plot_data():
     num_of_plots = 3
@@ -150,30 +161,30 @@ def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv"
     jnt_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt", jnt_fileName)
 
     train_x = build_train_x_tensor(jnt_file)
-    train_x = train_x.float()
-    train_x = train_x.cpu().numpy()
+    #train_x = train_x.float()
+    #train_x = train_x.cpu().numpy()
     train_y, train_y_dimension = build_train_y_tensor(rig_file)
-    train_y = train_y.float()
-    train_y = train_y.cpu().numpy()
+    #train_y = train_y.float()
+    #train_y = train_y.cpu().numpy()
 
-    k = 10
-    train_x_subsampled_indices = fps.farthest_point_sampling(train_x, k)
-    train_x_subsampled = train_x.index_select(0, torch.tensor(train_x_subsampled_indices))
-    train_y_subsampled = train_y.index_select(0, torch.tensor(train_x_subsampled_indices))
+    #k = 10
+    #train_x_subsampled_indices = fps.farthest_point_sampling(train_x, k)
+    #train_x_subsampled = train_x.index_select(0, torch.tensor(train_x_subsampled_indices))
+    #train_y_subsampled = train_y.index_select(0, torch.tensor(train_x_subsampled_indices))
 
 
 
     #dataset = dataLoader.IrmDataLoader(train_x, train_y)
-    train_dataset = torch.utils.data.TensorDataset(train_x_subsampled, train_y_subsampled)
+    #train_dataset = torch.utils.data.TensorDataset(train_x_subsampled, train_y_subsampled)
 
-    dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True)
+    #dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True)
 
 
     likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=train_y_dimension)
     likelihood.to(device)
     #model = MultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
-    #model = BatchIndependentMultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
-    model = BatchIndependentMultitaskGPModel(None, None, likelihood, train_y_dimension)
+    model = BatchIndependentMultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
+    #model = BatchIndependentMultitaskGPModel(None, None, likelihood, train_y_dimension)
     model.to(device)
 
     # Find optimal model hyperparameters
@@ -187,23 +198,23 @@ def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv"
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
     scaler = GradScaler()
-    training_iterations = 140
+    training_iterations = 50
     for i in range(training_iterations):
-        for batch_train_x, batch_train_y in dataloader:
+        #for batch_train_x, batch_train_y in dataloader:
             # Update the model with the current batch of data
-            model.set_train_data(inputs=batch_train_x, targets=batch_train_y, strict=False)
+            #model.set_train_data(inputs=batch_train_x, targets=batch_train_y, strict=False)
 
             # Perform your training steps here
-            optimizer.zero_grad()
-            with gpytorch.settings.use_toeplitz(False), torch.autograd.set_detect_anomaly(True):
-                output = model(batch_train_x)
-                loss = -mll(output, batch_train_y)
-            loss.backward()
-            optimizer.step()
-        print('Iter %d/%d - Loss: %.3f' % (i + 1, training_iterations, loss.item()))
+            #optimizer.zero_grad()
+            #with gpytorch.settings.use_toeplitz(False), torch.autograd.set_detect_anomaly(True):
+            #    output = model(batch_train_x)
+            #    loss = -mll(output, batch_train_y)
+            #loss.backward()
+            #optimizer.step()
+        #print('Iter %d/%d - Loss: %.3f' % (i + 1, training_iterations, loss.item()))
 
         
-        #optimizer.zero_grad()
+        optimizer.zero_grad()
 
         #with autocast():
         #    output = model(train_x)
@@ -213,11 +224,11 @@ def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv"
         #scaler.update()
 
 
-        #output = model(train_x)
-        #loss = -mll(output, train_y)
-        #loss.backward()
+        output = model(train_x)
+        loss = -mll(output, train_y)
+        loss.backward()
         print('Iter %d/%d - Loss: %.3f' % (i + 1, training_iterations, loss.item()))
-        #optimizer.step()
+        optimizer.step()
 
     # Set into eval mode
     model.eval()
