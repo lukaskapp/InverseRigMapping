@@ -1,18 +1,11 @@
 from PySide2 import QtCore, QtWidgets, QtGui
-from shiboken2 import wrapInstance
-import maya.OpenMayaUI as omui
 import maya.cmds as cmds
 from functools import partial
 from imp import reload
 
+import utils.ui as uiUtils
+reload(uiUtils)
 
-
-def maya_main_window():
-    """
-    Return the Maya main window widget as a Python object
-    """
-    main_window_ptr = omui.MQtUtil.mainWindow()
-    return wrapInstance(int(main_window_ptr), QtWidgets.QWidget)
 
 
 class DataGenWidget(QtWidgets.QWidget):
@@ -26,29 +19,29 @@ class DataGenWidget(QtWidgets.QWidget):
     def create_widgets(self):
         # rig widgets   
         self.rig_add_btn = QtWidgets.QPushButton("Add")
-
             
-        self.rig_table = QtWidgets.QTableWidget(0, 1)
-        self.rig_table.setHorizontalHeaderLabels(['Control Name'])
-        self.rig_table.verticalHeader().setVisible(False)
+        self.rig_tree = QtWidgets.QTreeWidget()
+        self.rig_tree.setHeaderLabels(['Control Name'])
+        #self.rig_table.verticalHeader().setVisible(False)
+        self.rig_tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.rig_tree.setItemDelegate(uiUtils.EditableItemDelegate(self.rig_tree))
 
-        rig_table_width = self.rig_table.geometry().width()
+
+        #rig_table_width = self.rig_table.geometry().width()
         #self.rig_table.setColumnWidth(0, rig_table_width * 0.98)
 
         #self.rig_table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignLeft)
-        self.rig_table.horizontalHeader().setStretchLastSection(True)
-        self.rig_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
+        #self.rig_table.horizontalHeader().setStretchLastSection(True)
+        #self.rig_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
 
 
         # joint widgets
         self.jnt_add_btn = QtWidgets.QPushButton("Add")
 
-        self.jnt_table = QtWidgets.QTableWidget(0,1)
-        self.jnt_table.setHorizontalHeaderLabels(['Joint Name'])
-        self.jnt_table.verticalHeader().setVisible(False)
-        self.jnt_table.horizontalHeader().setStretchLastSection(True)
-
-
+        self.jnt_tree = QtWidgets.QTreeWidget()
+        self.jnt_tree.setHeaderLabels(['Control Name'])
+        #self.jnt_table.verticalHeader().setVisible(False)
+        self.jnt_tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
         self.setting_widget = QtWidgets.QWidget()
 
@@ -77,7 +70,6 @@ class DataGenWidget(QtWidgets.QWidget):
         main_layout = QtWidgets.QHBoxLayout(self)
         main_layout.setContentsMargins(3,3,3,3)
 
-
         # left UI side - rig and joint attrs
         attr_layout = QtWidgets.QVBoxLayout(self)
         layout_size = self.size()
@@ -85,19 +77,14 @@ class DataGenWidget(QtWidgets.QWidget):
         attr_layout.setGeometry(QtCore.QRect(self.geometry().x(), self.geometry().y(), layout_size.width(), layout_size.height()))
         main_layout.addLayout(attr_layout)
 
-
         # rig layout
         rig_group = QtWidgets.QGroupBox('Control Rig Attributes')
         attr_layout.addWidget(rig_group)
         rig_attr_layout = QtWidgets.QVBoxLayout()
         rig_group.setLayout(rig_attr_layout)
 
-
-
         rig_attr_layout.addWidget(self.rig_add_btn)
-        rig_attr_layout.addWidget(self.rig_table)
-
-
+        rig_attr_layout.addWidget(self.rig_tree)
 
 
         # jnt layout
@@ -106,11 +93,8 @@ class DataGenWidget(QtWidgets.QWidget):
         jnt_attr_layout = QtWidgets.QVBoxLayout()
         jnt_group.setLayout(jnt_attr_layout)
 
-
         jnt_attr_layout.addWidget(self.jnt_add_btn)        
-        jnt_attr_layout.addWidget(self.jnt_table)
-
-
+        jnt_attr_layout.addWidget(self.jnt_tree)
 
         # right UI side - settings for data generation
         setting_layout = QtWidgets.QVBoxLayout(self)
@@ -139,8 +123,11 @@ class DataGenWidget(QtWidgets.QWidget):
 
     def create_connections(self):
         self.rig_add_btn.clicked.connect(self.add_rig_selection)
+        self.rig_tree.customContextMenuRequested.connect(self.show_rig_context_menu)
+        #self.rig_tree.itemDoubleClicked.connect(self.rename_item)
 
         self.jnt_add_btn.clicked.connect(self.add_jnt_selection)
+        self.jnt_tree.customContextMenuRequested.connect(self.show_jnt_context_menu)
 
         self.generate_btn.clicked.connect(self.generate_train_data)
         self.train_btn.clicked.connect(self.train_model)
@@ -149,21 +136,43 @@ class DataGenWidget(QtWidgets.QWidget):
     def add_rig_selection(self):
         sel = cmds.ls(sl=1)
         for obj in sel:
-            self.add_table_row(tableWidget=self.rig_table, item_list=[obj])
+            self.add_tree_item(treeWidget=self.rig_tree, item_list=[obj])
 
 
     def add_jnt_selection(self):
         sel = cmds.ls(sl=1)
         for obj in sel:
-            self.add_table_row(tableWidget=self.jnt_table, item_list=[obj])
+            self.add_tree_item(treeWidget=self.jnt_tree, item_list=[obj])
 
 
-    def add_table_row(self, tableWidget, item_list):
-        row_count = tableWidget.rowCount()
-        tableWidget.setRowCount(row_count + 1)
+    def add_tree_item(self, treeWidget, item_list):
         for i, name in enumerate(item_list):
-            item = QtWidgets.QTableWidgetItem(name)
-            tableWidget.setItem(row_count, i, item)
+            item = QtWidgets.QTreeWidgetItem([name])
+            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
+            treeWidget.addTopLevelItem(item)
+
+    def show_rig_context_menu(self, pos):
+        self.show_context_menu(pos, self.rig_tree)
+
+    def show_jnt_context_menu(self, pos):
+        self.show_context_menu(pos, self.jnt_tree)
+
+    def show_context_menu(self, pos, treeWidget):
+        menu = QtWidgets.QMenu(self)
+        delete_action = menu.addAction("Delete")
+        action = menu.exec_(treeWidget.mapToGlobal(pos))
+        if action == delete_action:
+            selected_items = treeWidget.selectedItems()
+            for selected_item in selected_items:
+                index = treeWidget.indexOfTopLevelItem(selected_item)
+                if index != -1:
+                    treeWidget.takeTopLevelItem(index)
+
+    def rename_item(self, item):
+        old_name = item.text(0)
+        new_name, ok = QtWidgets.QInputDialog.getText(self, "Rename", "Enter new name:", QtWidgets.QLineEdit.Normal, old_name)
+        if ok and new_name != old_name:
+            item.setText(0, new_name)
 
 
     def generate_train_data(self):
@@ -345,7 +354,7 @@ class IRM_UI(QtWidgets.QDialog):
             cls.dlg_instance.activateWindow()
 
 
-    def __init__(self, parent=maya_main_window()):
+    def __init__(self, parent=uiUtils.maya_main_window()):
         super(IRM_UI, self).__init__(parent)
 
         self.setWindowTitle("IRM Tool")
