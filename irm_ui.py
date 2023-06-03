@@ -20,7 +20,7 @@ class DataGenWidget(QtWidgets.QWidget):
         # rig widgets   
         self.rig_add_btn = QtWidgets.QPushButton("Add")
             
-        self.rig_tree = QtWidgets.QTreeWidget()
+        self.rig_tree = QtWidgets.QTreeWidget(self)
         self.rig_tree.setHeaderLabels(['Control Name', 'Min', 'Max'])
         self.rig_tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.rig_tree.setItemDelegate(uiUtils.EditableItemDelegate(self.rig_tree))
@@ -30,8 +30,8 @@ class DataGenWidget(QtWidgets.QWidget):
         header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
         header.setSectionResizeMode(1, QtWidgets.QHeaderView.Interactive)
         header.setSectionResizeMode(2, QtWidgets.QHeaderView.Interactive)
-        header.resizeSection(1, 80)
-        header.resizeSection(2, 80)
+        header.resizeSection(1, 100)
+        header.resizeSection(2, 100)
 
 
         # joint widgets
@@ -305,7 +305,7 @@ class IRM_UI(QtWidgets.QDialog):
         super(IRM_UI, self).__init__(parent)
 
         self.setWindowTitle("IRM Tool")
-        self.resize(700, 500)
+        self.resize(800, 800)
 
         self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint)
