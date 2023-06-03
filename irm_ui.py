@@ -21,18 +21,17 @@ class DataGenWidget(QtWidgets.QWidget):
         self.rig_add_btn = QtWidgets.QPushButton("Add")
             
         self.rig_tree = QtWidgets.QTreeWidget()
-        self.rig_tree.setHeaderLabels(['Control Name'])
-        #self.rig_table.verticalHeader().setVisible(False)
+        self.rig_tree.setHeaderLabels(['Control Name', 'Min', 'Max'])
         self.rig_tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.rig_tree.setItemDelegate(uiUtils.EditableItemDelegate(self.rig_tree))
 
-
-        #rig_table_width = self.rig_table.geometry().width()
-        #self.rig_table.setColumnWidth(0, rig_table_width * 0.98)
-
-        #self.rig_table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignLeft)
-        #self.rig_table.horizontalHeader().setStretchLastSection(True)
-        #self.rig_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
+        header = self.rig_tree.header()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QtWidgets.QHeaderView.Interactive)
+        header.setSectionResizeMode(2, QtWidgets.QHeaderView.Interactive)
+        header.resizeSection(1, 80)
+        header.resizeSection(2, 80)
 
 
         # joint widgets
@@ -122,34 +121,16 @@ class DataGenWidget(QtWidgets.QWidget):
         
 
     def create_connections(self):
-        self.rig_add_btn.clicked.connect(self.add_rig_selection)
+        self.rig_add_btn.clicked.connect(partial(uiUtils.add_selection, self.rig_tree))
         self.rig_tree.customContextMenuRequested.connect(self.show_rig_context_menu)
         #self.rig_tree.itemDoubleClicked.connect(self.rename_item)
 
-        self.jnt_add_btn.clicked.connect(self.add_jnt_selection)
+        self.jnt_add_btn.clicked.connect(partial(uiUtils.add_selection, self.jnt_tree))
         self.jnt_tree.customContextMenuRequested.connect(self.show_jnt_context_menu)
 
         self.generate_btn.clicked.connect(self.generate_train_data)
         self.train_btn.clicked.connect(self.train_model)
     
-
-    def add_rig_selection(self):
-        sel = cmds.ls(sl=1)
-        for obj in sel:
-            self.add_tree_item(treeWidget=self.rig_tree, item_list=[obj])
-
-
-    def add_jnt_selection(self):
-        sel = cmds.ls(sl=1)
-        for obj in sel:
-            self.add_tree_item(treeWidget=self.jnt_tree, item_list=[obj])
-
-
-    def add_tree_item(self, treeWidget, item_list):
-        for i, name in enumerate(item_list):
-            item = QtWidgets.QTreeWidgetItem([name])
-            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
-            treeWidget.addTopLevelItem(item)
 
     def show_rig_context_menu(self, pos):
         self.show_context_menu(pos, self.rig_tree)
@@ -160,13 +141,14 @@ class DataGenWidget(QtWidgets.QWidget):
     def show_context_menu(self, pos, treeWidget):
         menu = QtWidgets.QMenu(self)
         delete_action = menu.addAction("Delete")
-        action = menu.exec_(treeWidget.mapToGlobal(pos))
-        if action == delete_action:
-            selected_items = treeWidget.selectedItems()
-            for selected_item in selected_items:
-                index = treeWidget.indexOfTopLevelItem(selected_item)
-                if index != -1:
-                    treeWidget.takeTopLevelItem(index)
+        delete_action.triggered.connect(partial(self.delete_item, treeWidget))
+        menu.exec_(treeWidget.viewport().mapToGlobal(pos))
+
+
+    def delete_item(self, treeWidget):
+        selected_item = treeWidget.currentItem()
+        (selected_item.parent() or treeWidget.invisibleRootItem()).removeChild(selected_item)
+
 
     def rename_item(self, item):
         old_name = item.text(0)
@@ -202,41 +184,6 @@ class DataGenWidget(QtWidgets.QWidget):
         import train_model
         reload(train_model)
         train_model.train_model()
-
-
-
-
-
-class TrainWidget(QtWidgets.QWidget):
-    def __init__(self, parent=None):
-        super(TrainWidget, self).__init__(parent)
-
-        self.create_widgets()
-        self.create_layouts()
-        self.create_connections()
-
-    def create_widgets(self):
-        self.train_btn = QtWidgets.QPushButton("Train Model")
-
-
-    def create_layouts(self):
-        layout = QtWidgets.QVBoxLayout(self)
-        mod_layout = QtWidgets.QHBoxLayout(self)
-        mod_layout.addWidget(self.train_btn)
-
-        layout.addLayout(mod_layout)
-
-    def create_connections(self):
-        self.train_btn.clicked.connect(self.train_model)
-
-
-
-    def train_model(self):
-        import train_model
-        reload(train_model)
-        train_model.train_model()
-
-
 
 
 
@@ -375,7 +322,7 @@ class IRM_UI(QtWidgets.QDialog):
         self.predict_wdg = PredictWidget()
 
 
-        self.tab_widget = QtWidgets.QTabWidget()
+        self.tab_widget = QtWidgets.QTabWidget(self)
         self.tab_widget.addTab(self.dataGen_wdg, "Training Setup")
         #self.tab_widget.addTab(self.train_wdg, "Train Model")
         self.tab_widget.addTab(self.predict_wdg, "Predict Animation")
