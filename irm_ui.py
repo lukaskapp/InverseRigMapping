@@ -64,6 +64,11 @@ class DataGenWidget(QtWidgets.QWidget):
         self.lr_line = QtWidgets.QLineEdit("0.01")
         self.lr_line.setFixedWidth(60)
 
+        self.epoch_label = QtWidgets.QLabel("Epochs:")
+        self.epoch_label.setFixedWidth(70)
+        self.epoch_line = QtWidgets.QLineEdit("50")
+        self.epoch_line.setFixedWidth(60)
+
         self.train_btn = QtWidgets.QPushButton("Train Model")
 
 
@@ -122,6 +127,11 @@ class DataGenWidget(QtWidgets.QWidget):
         learningRate_layout.addWidget(self.lr_line)
         setting_layout.addLayout(learningRate_layout)
 
+        epoch_layout = QtWidgets.QHBoxLayout()
+        epoch_layout.addWidget(self.epoch_label)
+        epoch_layout.addWidget(self.epoch_line)
+        setting_layout.addLayout(epoch_layout)
+
         setting_layout.addWidget(self.train_btn)
 
         main_layout.addLayout(setting_layout)
@@ -135,15 +145,18 @@ class DataGenWidget(QtWidgets.QWidget):
         self.generate_btn.clicked.connect(self.generate_train_data)
         self.train_btn.clicked.connect(self.train_model)
     
+
     def add_rig_selection(self):
         sel = cmds.ls(sl=1)
         for obj in sel:
             self.add_table_row(tableWidget=self.rig_table, item_list=[obj])
 
+
     def add_jnt_selection(self):
         sel = cmds.ls(sl=1)
         for obj in sel:
             self.add_table_row(tableWidget=self.jnt_table, item_list=[obj])
+
 
     def add_table_row(self, tableWidget, item_list):
         row_count = tableWidget.rowCount()
@@ -151,6 +164,7 @@ class DataGenWidget(QtWidgets.QWidget):
         for i, name in enumerate(item_list):
             item = QtWidgets.QTableWidgetItem(name)
             tableWidget.setItem(row_count, i, item)
+
 
     def generate_train_data(self):
         rig_input_data = []

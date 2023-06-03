@@ -19,13 +19,40 @@ if torch.cuda.is_available():
     dev = "cuda:0" 
 else: 
     dev = "cpu"
-#dev = "cpu" 
+dev = "cpu" 
 device = torch.device(dev)
 
 
+def matrix_to_6d(rot_mat):
+    # Use the first two columns of the rotation matrix to get the 6D representation
+    return rot_mat[:, :2].reshape(-1)
+
+
+def _6d_to_matrix(rot_6d):
+    # Reshape the 6D representation back to a 3x2 matrix
+    mat = rot_6d.view(3, 2)
+
+    # Calculate the third column of the rotation matrix as the cross product of the first two columns
+    third_col = torch.cross(mat[:, 0], mat[:, 1]).unsqueeze(1)
+
+    # Construct the full rotation matrix
+    return torch.cat((mat, third_col), dim=1)
+
+
+def convert_tensor_to_6d(tensor, numObjs):
+    tensor_rotMtx = tensor.reshape(-1, numObjs, 3, 3)
+    tensor_6d = []
+    for entry in tensor_rotMtx:
+        temp = []
+        for obj in entry:
+            rot_6d = matrix_to_6d(obj)
+            temp.append(rot_6d.cpu().numpy())
+        tensor_6d.append(temp)
+    out_tensor = torch.from_numpy(np.array(tensor_6d)).float()
+
+    return out_tensor
+
 #anim_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "irm_anim_data.csv")
-
-
 def predict_data(anim_path):
     # load trained model
     rig_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig", "irm_rig_data.csv")
@@ -74,7 +101,9 @@ def predict_data(anim_path):
                 normalised_anim_x[entry_index][value_index] = value_norm
 
     cleaned_anim_x = np.array([entry for row in normalised_anim_x for entry in row if str(entry) != "nan"]) # remove n/a entries from data
-    anim_x_norm = torch.from_numpy(cleaned_anim_x.reshape(anim_data_frames, -1)).half()
+    anim_x_rotMtx = torch.from_numpy(cleaned_anim_x.reshape(anim_data_frames, -1)).float()
+
+    anim_x_norm = convert_tensor_to_6d(anim_x_rotMtx, anim_x_depth).reshape(anim_data_frames, -1)
     anim_x_norm = anim_x_norm.to(device)
 
 
@@ -96,6 +125,20 @@ def predict_data(anim_path):
 
     rig_obj_names = np.unique(train_rig_df.iloc[:, 1]) # get names of rig objects for data mapping later
     rig_dimension_list = train_rig_df.filter(items=["dimension"]).values[:len(rig_obj_names)] # get dimension per rig object for data mapping
+
+
+    # convert rot 6d back to rot matrix
+    predict_6d = torch.tensor(np.array(predict_mean)).reshape(anim_data_frames, anim_x_depth, -1)
+    predict_rotMtx = []
+    for entry in predict_6d:
+        temp = []
+        for obj in entry:
+            rot_mtx = _6d_to_matrix(obj)
+            temp.append(rot_mtx.cpu().numpy())
+        predict_rotMtx.append(temp)
+    predict_mean = torch.from_numpy(np.array(predict_rotMtx)).reshape(anim_data_frames, -1).float().tolist()
+
+
 
 
     predict_data = []
