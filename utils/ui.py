@@ -1,6 +1,7 @@
 from PySide2 import QtCore, QtWidgets, QtGui
 from shiboken2 import wrapInstance
 import maya.OpenMayaUI as omui
+import maya.OpenMaya as om
 import maya.cmds as cmds
 from imp import reload
 
@@ -24,15 +25,38 @@ class EditableItemDelegate(QtWidgets.QItemDelegate):
         super().setModelData(editor, model, index)
 
 
-class CustomTreeWidgetItem(QtWidgets.QTreeWidgetItem):
-    def __init__(self, data):
-        super(CustomTreeWidgetItem, self).__init__(data)
+class PlaceholderTreeWidget(QtWidgets.QTreeWidget):
+    def __init__(self, parent=None, label_msg="No items added"):
+        super(PlaceholderTreeWidget, self).__init__(parent)
+        self.emptyLabel = QtWidgets.QLabel(label_msg, self)
+        self.emptyLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.emptyLabel.hide()
 
-    def flags(self, column):
-        if column == 0:  # First column
-            return super().flags(column) | QtCore.Qt.ItemIsEditable  # Not editable
-        else:  # Second and third columns
-            return super().flags(column) | QtCore.Qt.ItemIsEditable  # Editable
+    def resizeEvent(self, event):
+        super(PlaceholderTreeWidget, self).resizeEvent(event)
+        header_height = self.header().height()
+        self.emptyLabel.setGeometry(0, header_height, self.width(), self.height() - header_height)
+
+    def checkIfEmpty(self):
+        if self.topLevelItemCount() == 0:
+            self.emptyLabel.show()
+        else:
+            self.emptyLabel.hide()
+
+
+class UnmovableSplitterHandle(QtWidgets.QSplitterHandle):
+    def __init__(self, orientation, parent):
+        super(UnmovableSplitterHandle, self).__init__(orientation, parent)
+
+    def mouseMoveEvent(self, event):
+        pass
+
+class UnmovableSplitter(QtWidgets.QSplitter):
+    def __init__(self, orientation, parent=None):
+        super(UnmovableSplitter, self).__init__(orientation, parent)
+
+    def createHandle(self):
+        return UnmovableSplitterHandle(self.orientation(), self)
 
 
 
@@ -41,23 +65,32 @@ class CustomTreeWidgetItem(QtWidgets.QTreeWidgetItem):
 def add_selection(treeWidget):
     sel = cmds.ls(sl=1)
     for obj in sel:
-        add_tree_item(treeWidget=treeWidget, item_list=[obj])
+        add_tree_item(treeWidget=treeWidget, name=obj)
 
 
-def add_tree_item(treeWidget, item_list):
-    for i, name in enumerate(item_list):
-        parent = QtWidgets.QTreeWidgetItem(treeWidget)
-        #parent.setFlags(parent.flags() & ~QtCore.Qt.ItemIsEditable)
-        parent.setText(0, name)
-        font = parent.font(0)
-        font.setBold(True)
-        parent.setFont(0, font)
-        
-        for attr in mUtils.get_all_attributes(name):
-            child = CustomTreeWidgetItem([attr, "-50", "50"])
-            parent.addChild(child)
+def add_tree_item(treeWidget, name):
+    root = treeWidget.invisibleRootItem()
+    for i in range(root.childCount()):
+        if root.child(i).text(0) == name:
+            om.MGlobal.displayWarning(f"Item '{name}' already exists. Skipping...")
+            return
 
-            #child.setFlags(child.flags() | QtCore.Qt.ItemIsEditable)
-            #child.setText(0, attr)
-            #child.setText(1, "-50.00")
-            #child.setText(2, "50.00")
+    parent = QtWidgets.QTreeWidgetItem(treeWidget)
+    parent.setFlags(parent.flags() & ~QtCore.Qt.ItemIsEditable)
+    parent.setText(0, name)
+    font = parent.font(0)
+    font.setBold(True)
+    parent.setFont(0, font)
+    
+    for attr in mUtils.get_all_attributes(name):
+        child = QtWidgets.QTreeWidgetItem(parent)
+        parent.addChild(child)
+        #child.setFlags(child.flags() | QtCore.Qt.ItemIsEditable)
+        child.setText(0, attr)
+        child.setText(1, "-50.000")
+        child.setText(2, "50.000")
+    
+    treeWidget.expandItem(parent)
+
+
+
