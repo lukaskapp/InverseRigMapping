@@ -1,6 +1,7 @@
 from PySide2 import QtCore, QtWidgets, QtGui
 import maya.cmds as cmds
 from functools import partial
+import json
 from imp import reload
 
 import utils.ui as uiUtils
@@ -27,8 +28,7 @@ class DataGenWidget(QtWidgets.QWidget):
         self.rig_add_btn = QtWidgets.QPushButton("Add")
             
         # rig tree view widget
-        #self.rig_tree = QtWidgets.QTreeWidget(self)
-        rig_msg = "To start generation add parameters to sample using the green + button.\nMake sure you have at least one object selected in the outliner."
+        rig_msg = 'Add rig control parameters using the "Add" button.\nMake sure you have at least one object selected.\nAdjust the parameter range and delete unwanted parameters by right-clicking and choosing "Delete".'
         self.rig_tree = uiUtils.PlaceholderTreeWidget(self, rig_msg)
         self.rig_tree.setHeaderLabels(['Control Name', 'Min', 'Max'])
         self.rig_tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -51,7 +51,7 @@ class DataGenWidget(QtWidgets.QWidget):
         self.jnt_add_btn = QtWidgets.QPushButton("Add")
 
         # joint tree view widget
-        jnt_msg = "To start generation add parameters to sample using the green + button.\nMake sure you have at least one object selected in the outliner."
+        jnt_msg = 'Add joints using the "Add" button.\nMake sure you have at least one joint selected.\nOnly connected parameters are added. Delete unwanted ones by right-clicking and choosing "Delete".'
         self.jnt_tree = uiUtils.PlaceholderTreeWidget(self, jnt_msg)
         self.jnt_tree.setHeaderLabels(['Joint Name'])
         self.jnt_tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -65,10 +65,12 @@ class DataGenWidget(QtWidgets.QWidget):
         self.minRange_label = QtWidgets.QLabel("Minimum:")
         self.minRange_line = QtWidgets.QLineEdit("-50.000")
         self.minRange_line.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp("^-?\d+(\.\d{0,3})?$")))
+        self.minRange_line.setEnabled(False)
 
         self.maxRange_label = QtWidgets.QLabel("Maximum:")
         self.maxRange_line = QtWidgets.QLineEdit("50.000")
         self.maxRange_line.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp("^-?\d+(\.\d{0,3})?$")))
+        self.maxRange_line.setEnabled(False)
 
         self.dataSpacer01_label = QtWidgets.QLabel()
         self.dataSpacer01_label.setFixedHeight(10)
@@ -100,15 +102,24 @@ class DataGenWidget(QtWidgets.QWidget):
         # output settings
         self.outRig_label = QtWidgets.QLabel("Control Rig File:")
         self.outRig_line = QtWidgets.QLineEdit("irm_rig_data.csv")
+        self.outRig_line.setReadOnly(True)
+        self.outRig_btn = QtWidgets.QPushButton("<")
+        self.outRig_btn.setFixedSize(20,20)
 
         self.outJnt_label = QtWidgets.QLabel("Joint File:")
         self.outJnt_line = QtWidgets.QLineEdit("irm_rig_data.csv")
+        self.outJnt_line.setReadOnly(True)
+        self.outJnt_btn = QtWidgets.QPushButton("<")
+        self.outJnt_btn.setFixedSize(20,20)
 
         self.outSpacer01_label = QtWidgets.QLabel()
         self.outSpacer01_label.setFixedHeight(10)
 
         self.outModel_label = QtWidgets.QLabel("Model File:")
         self.outModel_line = QtWidgets.QLineEdit("trained_model.pt")
+        self.outModel_line.setReadOnly(True)
+        self.outModel_btn = QtWidgets.QPushButton("<")
+        self.outModel_btn.setFixedSize(20,20)
 
         self.outSpacer02_label = QtWidgets.QLabel()
         self.outSpacer02_label.setFixedHeight(50)
@@ -227,14 +238,17 @@ class DataGenWidget(QtWidgets.QWidget):
 
         output_layout.addWidget(self.outRig_label, 1, 0)
         output_layout.addWidget(self.outRig_line, 1, 1)
+        output_layout.addWidget(self.outRig_btn, 1, 2)
 
         output_layout.addWidget(self.outJnt_label, 2, 0)
         output_layout.addWidget(self.outJnt_line, 2, 1)
+        output_layout.addWidget(self.outJnt_btn, 2, 2)
 
         output_layout.addWidget(self.outSpacer01_label, 3, 0)
 
         output_layout.addWidget(self.outModel_label, 4, 0)
         output_layout.addWidget(self.outModel_line, 4, 1)
+        output_layout.addWidget(self.outModel_btn, 4, 2)
 
         output_layout.addWidget(self.outSpacer02_label, 5, 0)
 
@@ -266,74 +280,56 @@ class DataGenWidget(QtWidgets.QWidget):
 
     def create_connections(self):
         # rig UI
-        self.rig_clear_btn.clicked.connect(partial(self.clear_tree, self.rig_tree, self.rig_param_label))
-        self.rig_add_btn.clicked.connect(partial(self.add_tree_item, self.rig_tree, self.rig_param_label))
+        self.rig_clear_btn.clicked.connect(partial(uiUtils.clear_tree, self.rig_tree, self.rig_param_label))
+        self.rig_add_btn.clicked.connect(partial(self.add_tree_item, self.rig_tree, self.rig_param_label, jnt_mode=False))
         
         self.rig_tree.customContextMenuRequested.connect(self.show_rig_context_menu)
         self.rig_tree.itemChanged.connect(self.rig_tree.checkIfEmpty)
         self.rig_tree.itemSelectionChanged.connect(self.update_param_range)
-
+        
         # joint UI
-        self.jnt_clear_btn.clicked.connect(partial(self.clear_tree, self.jnt_tree, self.jnt_param_label))
-        self.jnt_add_btn.clicked.connect(partial(self.add_tree_item, self.jnt_tree, self.jnt_param_label))
+        self.jnt_clear_btn.clicked.connect(partial(uiUtils.clear_tree, self.jnt_tree, self.jnt_param_label))
+        self.jnt_add_btn.clicked.connect(partial(self.add_tree_item, self.jnt_tree, self.jnt_param_label, jnt_mode=True))
         
         self.jnt_tree.customContextMenuRequested.connect(self.show_jnt_context_menu)
         self.jnt_tree.itemChanged.connect(self.jnt_tree.checkIfEmpty)
 
         # data/train settings
         self.minRange_line.editingFinished.connect(self.update_min_range)
-
         self.maxRange_line.editingFinished.connect(self.update_max_range)
 
-        #self.numPoses_line.editingFinished.connect(partial(self.ensure_notZero, self.numPoses_line))
+        self.outRig_btn.clicked.connect(self.set_rigData_outPath)
+        self.outJnt_btn.clicked.connect(self.set_jntData_outPath)
+        self.outModel_btn.clicked.connect(self.set_model_outPath)
 
         self.generate_btn.clicked.connect(self.generate_train_data)
         self.train_btn.clicked.connect(self.train_model)
     
 
-    def add_tree_item(self, treeWidget, label):
-        uiUtils.add_selection(treeWidget)
-        self.update_param_label(treeWidget, label)
+    def set_rigData_outPath(self):
+        uiUtils.saveFileDialog(self, self.outRig_line, "Save Control Rig Train Data", "csv")
 
-    def update_param_label(self, treeWidget, label):
-        count = 0
-        for i in range(0, treeWidget.topLevelItemCount()):
-            parent = treeWidget.topLevelItem(i)
-            count += parent.childCount()
+    def set_jntData_outPath(self):
+        uiUtils.saveFileDialog(self, self.outJnt_line, "Save Joint Train Data", "csv")
 
-        label.setText("{}({})".format(label.text().rpartition("(")[0], count))
+    def set_model_outPath(self):
+        uiUtils.saveFileDialog(self, self.outModel_line, "Save Trained Model", "pt")
 
-
-    def clear_tree(self, treeWidget, label):
-        treeWidget.clear()
-        treeWidget.checkIfEmpty()
-        self.update_param_label(treeWidget, label)
-
+    def add_tree_item(self, treeWidget, label, jnt_mode):
+        uiUtils.add_selection(treeWidget, jnt_mode)
+        uiUtils.update_param_label(treeWidget, label)
 
     def show_rig_context_menu(self, pos):
-        self.show_context_menu(pos, self.rig_tree)
+        uiUtils.show_context_menu(self, pos, self.rig_tree)
         self.rig_tree.checkIfEmpty()
-        self.update_param_label(self.rig_tree, self.rig_param_label)
+        uiUtils.update_param_label(self.rig_tree, self.rig_param_label)
 
     def show_jnt_context_menu(self, pos):
-        self.show_context_menu(pos, self.jnt_tree)
+        uiUtils.show_context_menu(self, pos, self.jnt_tree)
         self.jnt_tree.checkIfEmpty()
-        self.update_param_label(self.jnt_tree, self.jnt_param_label)
+        uiUtils.update_param_label(self.jnt_tree, self.jnt_param_label)
 
         
-    def show_context_menu(self, pos, treeWidget):
-        menu = QtWidgets.QMenu(self)
-        delete_action = menu.addAction("Delete")
-        delete_action.triggered.connect(partial(self.delete_items, treeWidget))
-        menu.exec_(treeWidget.viewport().mapToGlobal(pos))
-
-
-    def delete_items(self, treeWidget):
-        selected_items = treeWidget.selectedItems()
-        for item in selected_items:
-            (item.parent() or treeWidget.invisibleRootItem()).removeChild(item)
-
-
     def update_param_range(self):
         selected_items = self.rig_tree.selectedItems()
 
@@ -343,8 +339,14 @@ class DataGenWidget(QtWidgets.QWidget):
             if item.childCount() > 0:
                 return
             else:
+                self.minRange_line.setEnabled(True)
+                self.maxRange_line.setEnabled(True)
                 self.minRange_line.setText(item.text(1))
                 self.maxRange_line.setText(item.text(2))
+        else:
+            self.minRange_line.setEnabled(False)
+            self.maxRange_line.setEnabled(False)
+
 
     def ensure_three_digits(self, lineWidget):
         value = float(lineWidget.text())
@@ -364,6 +366,7 @@ class DataGenWidget(QtWidgets.QWidget):
     def update_max_range(self):
         self.update_selected_items(self.maxRange_line, 2)
         self.ensure_three_digits(self.maxRange_line)
+
 
     def update_selected_items(self, lineWidget, column):
         selected_items = self.rig_tree.selectedItems()
@@ -415,92 +418,168 @@ class PredictWidget(QtWidgets.QWidget):
         self.create_layouts()
         self.create_connections()
 
+        self.anim_tree.checkIfEmpty()
+
+
     def create_widgets(self):
-        # rig widgets   
-        self.rig_add_btn = QtWidgets.QPushButton("Add")
-
+        # anim widgets   
+        self.anim_param_label = QtWidgets.QLabel("Animation Parameters (0)")
+        self.anim_param_label.setStyleSheet("color: #00ff6e;")
+        self.anim_clear_btn = QtWidgets.QPushButton("Clear All")
+        self.anim_add_btn = QtWidgets.QPushButton("Add")
             
-        self.rig_table = QtWidgets.QTableWidget(0, 1)
-        self.rig_table.setHorizontalHeaderLabels(['Joint Name'])
-        self.rig_table.verticalHeader().setVisible(False)
+        # anim tree view widget
+        anim_msg = 'Add animated parameters using the "Add" button.\nMake sure you have at least one joint selected.'
+        self.anim_tree = uiUtils.PlaceholderTreeWidget(self, anim_msg)
+        self.anim_tree.setHeaderLabels(['Joint Name'])
+        self.anim_tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.anim_tree.setItemDelegate(uiUtils.EditableItemDelegate(self.anim_tree))
+        self.anim_tree.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
-        rig_table_width = self.rig_table.geometry().width()
-        #self.rig_table.setColumnWidth(0, rig_table_width * 0.98)
-
-        #self.rig_table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignLeft)
-        self.rig_table.horizontalHeader().setStretchLastSection(True)
-        self.rig_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
+        header = self.anim_tree.header()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
 
 
 
+        # predict settings
         self.setting_widget = QtWidgets.QWidget()
 
-        self.numPoses_label = QtWidgets.QLabel("Num Poses:")
-        self.numPoses_label.setFixedWidth(70)
-        self.numPoses_line = QtWidgets.QLineEdit("1000")
-        self.numPoses_line.setFixedWidth(60)
+        self.outJnt_label = QtWidgets.QLabel("Joint Train Data:")
+        self.outJnt_line = QtWidgets.QLineEdit("irm_rig_data.csv")
+        self.outJnt_line.setReadOnly(True)
+        self.outJnt_btn = QtWidgets.QPushButton("<")
+        self.outJnt_btn.setFixedSize(20,20)
 
-        self.map_btn = QtWidgets.QPushButton("Map Prediction")
+        self.outSpacer01_label = QtWidgets.QLabel()
+        self.outSpacer01_label.setFixedHeight(10)
 
+        self.outModel_label = QtWidgets.QLabel("Trained Model:")
+        self.outModel_line = QtWidgets.QLineEdit("trained_model.pt")
+        self.outModel_line.setReadOnly(True)
+        self.outModel_btn = QtWidgets.QPushButton("<")
+        self.outModel_btn.setFixedSize(20,20)
+
+        self.outSpacer02_label = QtWidgets.QLabel()
+        self.outSpacer02_label.setFixedHeight(500)
+
+        # buttons
+        self.predict_btn = QtWidgets.QPushButton("Map Prediction")
 
 
     def create_layouts(self): 
         # main UI layout
-        main_layout = QtWidgets.QHBoxLayout(self)
+        main_layout = QtWidgets.QHBoxLayout()
         main_layout.setContentsMargins(3,3,3,3)
 
 
-        # left UI side - rig and joint attrs
-        attr_layout = QtWidgets.QVBoxLayout(self)
-        layout_size = self.size()
-        layout_size.setWidth(layout_size.width() // 2)
-        attr_layout.setGeometry(QtCore.QRect(self.geometry().x(), self.geometry().y(), layout_size.width(), layout_size.height()))
-        main_layout.addLayout(attr_layout)
+        # left UI side - anim parameters
+        tree_widget = QtWidgets.QWidget()
+        tree_layout = QtWidgets.QVBoxLayout()
+        tree_widget.setLayout(tree_layout)
 
 
-        # rig layout
-        rig_group = QtWidgets.QGroupBox('Animation Attributes')
-        attr_layout.addWidget(rig_group)
-        rig_attr_layout = QtWidgets.QVBoxLayout()
-        rig_group.setLayout(rig_attr_layout)
+        # anim layout
+        anim_group = QtWidgets.QGroupBox()
+        tree_layout.addWidget(anim_group)
+        anim_attr_layout = QtWidgets.QVBoxLayout()
+        anim_group.setLayout(anim_attr_layout)
+
+        anim_btn_layout = QtWidgets.QHBoxLayout()
+        anim_btn_layout.addWidget(self.anim_param_label)
+        anim_btn_layout.addWidget(self.anim_clear_btn)
+        anim_btn_layout.addWidget(self.anim_add_btn)
+        anim_attr_layout.addLayout(anim_btn_layout)
+
+        anim_attr_layout.addWidget(self.anim_tree)
 
 
-        rig_attr_layout.addWidget(self.rig_add_btn)
-        rig_attr_layout.addWidget(self.rig_table)
+        # right UI side - settings for prediction
+        settings_widget = QtWidgets.QWidget()
+        settings_layout = QtWidgets.QVBoxLayout()
+        settings_widget.setLayout(settings_layout)
+
+        predict_widget = QtWidgets.QGroupBox("Predict Settings")
+        predict_widget.setStyleSheet("QGroupBox { color: #00ff6e; }")
+        predict_layout = QtWidgets.QGridLayout()
+        predict_widget.setLayout(predict_layout)
+
+        predictAlign_widget = QtWidgets.QWidget()
+        predictAlign_widget.setFixedWidth(110)
+        predictAlign_widget.setFixedHeight(1)
+        predict_layout.addWidget(predictAlign_widget, 0, 0)
+
+        predictAlign_widget = QtWidgets.QWidget()
+        predictAlign_widget.setFixedWidth(110)
+        predictAlign_widget.setFixedHeight(1)
+        predict_layout.addWidget(predictAlign_widget, 0, 0)
+
+        predict_layout.addWidget(self.outJnt_label, 2, 0)
+        predict_layout.addWidget(self.outJnt_line, 2, 1)
+        predict_layout.addWidget(self.outJnt_btn, 2, 2)
+
+        predict_layout.addWidget(self.outSpacer01_label, 3, 0)
+
+        predict_layout.addWidget(self.outModel_label, 4, 0)
+        predict_layout.addWidget(self.outModel_line, 4, 1)
+        predict_layout.addWidget(self.outModel_btn, 4, 2)
+
+        predict_layout.addWidget(self.outSpacer02_label, 5, 0)
+
+        settings_layout.addWidget(predict_widget)
+        
+        # button layout
+        outBtn_layout = QtWidgets.QHBoxLayout()
+        outBtn_layout.addWidget(self.predict_btn)
+        settings_layout.addLayout(outBtn_layout)
 
 
-        # right UI side - settings for data generation
-        setting_layout = QtWidgets.QVBoxLayout(self)
+        # main layout splitter
+        main_splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        main_splitter.addWidget(tree_widget)
+        main_splitter.addWidget(settings_widget)
+        main_splitter.setSizes([7000, 3000])
+        main_layout.addWidget(main_splitter)
+        self.setLayout(main_layout)
 
-        numPoses_layout = QtWidgets.QHBoxLayout()
-        numPoses_layout.addWidget(self.numPoses_label)
-        numPoses_layout.addWidget(self.numPoses_line)
-        #setting_layout.addLayout(numPoses_layout)
-
-        setting_layout.addWidget(self.map_btn)
-
-        main_layout.addLayout(setting_layout)
 
     def create_connections(self):
-        self.rig_add_btn.clicked.connect(self.add_jnt_selection)
-        self.map_btn.clicked.connect(self.map_predict)
+        # anim UI
+        self.anim_clear_btn.clicked.connect(partial(uiUtils.clear_tree, self.anim_tree, self.anim_param_label))
+        self.anim_add_btn.clicked.connect(partial(self.add_tree_item, self.anim_tree, self.anim_param_label, jnt_mode=True))
+        
+        self.anim_tree.customContextMenuRequested.connect(self.show_anim_context_menu)
+        self.anim_tree.itemChanged.connect(self.anim_tree.checkIfEmpty)
 
-    def add_jnt_selection(self):
-        sel = cmds.ls(sl=1)
-        for obj in sel:
-            self.add_table_row(tableWidget=self.rig_table, item_list=[obj])
+        # predict settings
+        self.outJnt_btn.clicked.connect(self.set_jntData_outPath)
+        self.outModel_btn.clicked.connect(self.set_model_outPath)
 
-    def add_table_row(self, tableWidget, item_list):
-        row_count = tableWidget.rowCount()
-        tableWidget.setRowCount(row_count + 1)
-        for i, name in enumerate(item_list):
-            item = QtWidgets.QTableWidgetItem(name)
-            tableWidget.setItem(row_count, i, item)
+        self.predict_btn.clicked.connect(self.map_prediction)
+        
 
-    def map_predict(self):
+    def set_jntData_outPath(self):
+        uiUtils.saveFileDialog(self, self.outJnt_line, "Load Joint Train Data", "csv")
+
+
+    def set_model_outPath(self):
+        uiUtils.saveFileDialog(self, self.outModel_line, "Load Trained Model", "pt")
+
+    def add_tree_item(self, treeWidget, label, jnt_mode):
+        uiUtils.add_selection(treeWidget, jnt_mode)
+        uiUtils.update_param_label(treeWidget, label)
+
+    def show_anim_context_menu(self, pos):
+        uiUtils.show_context_menu(self, pos, self.anim_tree)
+        self.anim_tree.checkIfEmpty()
+        uiUtils.update_param_label(self.anim_tree, self.anim_param_label)
+
+
+    def map_prediction(self):
         import apply_prediction
         reload(apply_prediction)
         apply_prediction.map_data()
+
 
 
 class IRM_UI(QtWidgets.QDialog):
@@ -534,25 +613,97 @@ class IRM_UI(QtWidgets.QDialog):
         self.create_layouts()
         self.create_connections()
 
+
     def create_widgets(self):
+        # menu bar
+        self.menuBar = QtWidgets.QMenuBar()
+        self.file_menu = QtWidgets.QMenu("File", self)
+        self.menu_load = QtWidgets.QAction("Load Config", self)
+        self.menu_save = QtWidgets.QAction("Save Config", self)
+        self.menu_recent = QtWidgets.QMenu("Recent Configs", self)
+
+        self.file_menu.addAction(self.menu_load)
+        self.file_menu.addAction(self.menu_save)
+        self.file_menu.addSeparator()
+        #self.file_menu.addMenu(self.menu_recent)
+        self.menuBar.addMenu(self.file_menu)
+
+        # tab widgets
         self.dataGen_wdg = DataGenWidget()
         self.predict_wdg = PredictWidget()
 
         self.tab_widget = QtWidgets.QTabWidget(self)
         self.tab_widget.addTab(self.dataGen_wdg, "Training Setup")
-        #self.tab_widget.addTab(self.train_wdg, "Train Model")
         self.tab_widget.addTab(self.predict_wdg, "Predict Animation")
-
 
 
     def create_layouts(self):      
         main_layout = QtWidgets.QVBoxLayout(self)
         main_layout.setContentsMargins(3,3,3,3)
+        main_layout.addWidget(self.menuBar)
         main_layout.addWidget(self.tab_widget)
 
 
     def create_connections(self):
-        pass
+        self.menu_load.triggered.connect(self.load_config)
+        self.menu_save.triggered.connect(self.save_config)
+
+
+    def load_config(self):
+        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Open IRM Config", QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation), "JSON Files (*.json)")
+        if file_name:
+            pass
+
+
+    def save_config(self):
+        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save IRM Config", QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation), "JSON Files (*.json)")
+        if file_name:
+            pass
+
+    def add_to_recent_configs(self, file_name):
+        # Load the current list of recent configs
+        try:
+            with open('recent_configs.json', 'r') as f:
+                recent_configs = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            recent_configs = []
+
+        # Add the new config to the front of the list, removing any duplicates
+        recent_configs = [file_name] + [config for config in recent_configs if config != file_name]
+        
+        # Keep the list at a maximum of 5 items
+        recent_configs = recent_configs[:5]
+
+        # Write the list back to the file
+        with open('recent_configs.json', 'w') as f:
+            json.dump(recent_configs, f)
+
+        self.update_recent_configs()
+
+
+    def update_recent_configs(self):
+        # Clear the current menu
+        self.menu_recent.clear()
+
+        # Load the list of recent configs
+        try:
+            with open('recent_configs.json', 'r') as f:
+                recent_configs = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return
+
+        # Add each config to the menu
+        for config in recent_configs:
+            action = self.menu_recent.addAction(config)
+            action.triggered.connect(lambda config=config: self.load_recent_config(config))
+
+
+    def load_recent_config(self, file_name=None):
+        if file_name is None:  # If no file name was provided, open a file dialog
+            file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Open JSON", QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation), "JSON Files (*.json)")
+        if file_name:
+            # Load the config
+            self.add_to_recent_configs(file_name)
 
 
 
