@@ -3,6 +3,7 @@ from shiboken2 import wrapInstance
 import maya.OpenMayaUI as omui
 import maya.OpenMaya as om
 import maya.cmds as cmds
+from functools import partial
 from imp import reload
 
 import utils.maya as mUtils
@@ -62,35 +63,89 @@ class UnmovableSplitter(QtWidgets.QSplitter):
 
 ### FUNCTIONS ###
 
-def add_selection(treeWidget):
-    sel = cmds.ls(sl=1)
+
+def add_selection(treeWidget, jnt_mode):
+    if jnt_mode:
+        sel = cmds.ls(sl=1, typ="joint")
+    else:
+        raw_sel = cmds.ls(sl=1, transforms=True)
+        sel = []
+        for transform in raw_sel:
+            child_nodes = cmds.listRelatives(transform, children=True, fullPath=True) or []
+            has_desired_types = any(cmds.nodeType(child) in ['nurbsCurve', 'mesh', 'nurbsSurface'] for child in child_nodes)
+            if has_desired_types:
+                sel.append(transform)
     for obj in sel:
-        add_tree_item(treeWidget=treeWidget, name=obj)
+        add_tree_item(treeWidget=treeWidget, name=obj, jnt_mode=jnt_mode)
 
 
-def add_tree_item(treeWidget, name):
+def add_tree_item(treeWidget, name, jnt_mode=False):
     root = treeWidget.invisibleRootItem()
     for i in range(root.childCount()):
         if root.child(i).text(0) == name:
             om.MGlobal.displayWarning(f"Item '{name}' already exists. Skipping...")
             return
 
-    parent = QtWidgets.QTreeWidgetItem(treeWidget)
-    parent.setFlags(parent.flags() & ~QtCore.Qt.ItemIsEditable)
-    parent.setText(0, name)
-    font = parent.font(0)
-    font.setBold(True)
-    parent.setFont(0, font)
-    
-    for attr in mUtils.get_all_attributes(name):
-        child = QtWidgets.QTreeWidgetItem(parent)
-        parent.addChild(child)
-        #child.setFlags(child.flags() | QtCore.Qt.ItemIsEditable)
-        child.setText(0, attr)
-        child.setText(1, "-50.000")
-        child.setText(2, "50.000")
-    
-    treeWidget.expandItem(parent)
+    if jnt_mode:
+        attr_list = [attr for attr in mUtils.get_all_attributes(name, unlocked=False) if mUtils.check_source_connection(name, attr)]
+    else:
+        attr_list = mUtils.get_all_attributes(name)
+
+    if attr_list:
+        parent = QtWidgets.QTreeWidgetItem(treeWidget)
+        parent.setFlags(parent.flags() & ~QtCore.Qt.ItemIsEditable)
+        parent.setText(0, name)
+        font = parent.font(0)
+        font.setBold(True)
+        parent.setFont(0, font)
+        
 
 
+        for attr in attr_list:
+            child = QtWidgets.QTreeWidgetItem(parent)
+            parent.addChild(child)
+            #child.setFlags(child.flags() | QtCore.Qt.ItemIsEditable)
+            child.setText(0, attr)
+            child.setText(1, "-50.000")
+            child.setText(2, "50.000")
+        
+        treeWidget.expandItem(parent)
 
+
+def saveFileDialog(widget, lineEdit, dialog_header, file_types):
+    options = QtWidgets.QFileDialog.Options()
+    fileName, _ = QtWidgets.QFileDialog.getSaveFileName(widget, dialog_header, "", f"{file_types.upper()} Files (*.{file_types})", options=options)
+    if fileName:
+        if not fileName.endswith(f".{file_types}"):
+            fileName += f".{file_types}"
+        #with open(fileName, 'w') as f: 
+        #    json.dump({}, f)
+        lineEdit.setText(fileName)
+
+
+def update_param_label(treeWidget, label):
+    count = 0
+    for i in range(0, treeWidget.topLevelItemCount()):
+        parent = treeWidget.topLevelItem(i)
+        count += parent.childCount()
+
+    label.setText("{}({})".format(label.text().rpartition("(")[0], count))
+
+
+def clear_tree(treeWidget, label):
+    treeWidget.clear()
+    treeWidget.checkIfEmpty()
+    update_param_label(treeWidget, label)
+
+
+def show_context_menu(widget, pos, treeWidget):
+    menu = QtWidgets.QMenu(widget)
+    delete_action = menu.addAction("Delete")
+    delete_action.triggered.connect(partial(delete_items, treeWidget))
+    menu.exec_(treeWidget.viewport().mapToGlobal(pos))
+
+
+def delete_items(treeWidget):
+    selected_items = treeWidget.selectedItems()
+    for item in selected_items:
+        (item.parent() or treeWidget.invisibleRootItem()).removeChild(item)
