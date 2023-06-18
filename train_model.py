@@ -22,6 +22,3 @@ def train_model(py_app, rig_path="irm_rig_data.csv", jnt_path="irm_jnt_data.csv"
 
 if __name__ == "__main__":
     train_model()
-
-
-['R:/diploma_inverse_rig_mapping/venv/Scripts/python.exe', '-c', "import sys; sys.path.append('R:\\diploma_inverse_rig_mapping\\code_inverseRigMapping'); import gpr_model as gpr; gpr.train_model('R:\\diploma_inverse_rig_mapping\\code_inverseRigMapping\\training_data\\rig\\irm_rig_data.csv', 'R:/diploma_inverse_rig_mapping/code_inverseRigMapping/training_data/jnt/irm_jnt_data.csv', 'R:/diploma_inverse_rig_mapping/code_inverseRigMapping/trained_model/trained_model.pt', 0.01, 100, False)"]
