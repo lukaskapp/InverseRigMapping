@@ -121,49 +121,16 @@ def build_train_y_tensor(rig_file):
 
 
 
-def plot_data():
-    num_of_plots = 3
-    # Initialize plots
-    f, axs = plt.subplots(num_of_plots, 1, figsize=(7.5, 5*num_of_plots))
+#rig_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig/irm_rig_data.csv")
+#jnt_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt/irm_jnt_data.csv")
+#model_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model/trained_model.pt")
 
-    with torch.no_grad(), gpytorch.settings.fast_pred_var():
-        test_x_tensor = [torch.linspace(train_x_rot.min().cpu(), train_x_rot.max().cpu(), 100) for i in range(train_x_dimension)]
-        test_x = torch.stack(test_x_tensor, -1).half()
-        test_x = test_x.to(device)
-        predictions = likelihood(model(test_x))
-
-    # Define plotting function
-    def ax_plot(ax, index, train_y, train_x, prediction, title, min_y, max_y):
-        # Get lower and upper confidence bounds
-        lower, upper = prediction.confidence_region()
-        mean = prediction.mean
-        # Plot training data as black stars
-        ax.plot(train_x.detach().cpu().numpy(), train_y.detach().cpu().numpy(), 'k*')
-        # Predictive mean as blue line
-        ax.plot(test_x[:, index].detach().cpu().numpy(), mean[:, index].detach().cpu().numpy(), 'b')
-        # Shade in confidence
-        ax.fill_between(test_x[:, index].detach().cpu().numpy(), lower[:, index].detach().cpu().numpy(), upper[:, index].detach().cpu().numpy(), alpha=0.5)
-        ax.set_ylim([min_y, max_y])
-        ax.legend(['Observed Data', 'Mean', 'Confidence'])
-        ax.set_title(title)
-
-    # Plot both tasks
-    for i in range(num_of_plots):
-        ax_plot(axs[i], i, train_y[:, i], train_x_rot[:, i], predictions, 'Observed Values (Likelihood)', -50, 50)
-    #ax_plot(axs[1], 1, train_y[:, 1], train_x[:, 0], predictions, 'Observed Values (Likelihood)', -40, 40)
-
-
-#rig_fileName="irm_rig_data.csv"
-#jnt_fileName="irm_jnt_data.csv"
-#model_file="trained_model.pt"
-def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv",  model_file="trained_model.pt"):
-    rig_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig", rig_fileName)
-    jnt_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt", jnt_fileName)
-
-    train_x = build_train_x_tensor(jnt_file)
+def train_model(rig_path, jnt_path, model_path, lr, epochs, force_cpu):
+    # build tensors
+    train_x = build_train_x_tensor(jnt_path)
     #train_x = train_x.float()
     #train_x = train_x.cpu().numpy()
-    train_y, train_y_dimension = build_train_y_tensor(rig_file)
+    train_y, train_y_dimension = build_train_y_tensor(rig_path)
     #train_y = train_y.float()
     #train_y = train_y.cpu().numpy()
 
