@@ -14,6 +14,9 @@ def get_all_attributes(obj, unlocked=True):
     '''
     return [attr for attr in cmds.listAttr(obj, unlocked=unlocked, keyable=True, scalar=True) if not cmds.attributeQuery(attr, node=obj, at=1) in ["enum", "bool"]]
 
+def filter_attrs_from_dict(dict_entry):
+    return [attr[0] for attr in dict_entry]
+
 
 def restore_defaults(ctrl):
     '''

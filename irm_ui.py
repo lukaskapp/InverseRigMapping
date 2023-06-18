@@ -394,19 +394,18 @@ class DataGenWidget(QtWidgets.QWidget):
 
         rig_path = self.outRig_line.text()
         jnt_path = self.outJnt_line.text()
+        train_poses = int(self.numPoses_line.text())
 
-        print("RIG INPUT DATA: ", rig_input_data)
-        print("RIG OUT PATH: ", rig_path)
-        print("JNT INPUT DATA: ", jnt_input_data)      
-        print("JNT OUT PATH: ", jnt_path)
+        if not uiUtils.check_file_path(path=rig_path) or not uiUtils.check_file_path(path=jnt_path):
+            return
 
-        uiUtils.check_file_path(path=rig_path)
-        uiUtils.check_file_path(path=jnt_path)
+        if not uiUtils.check_train_data(rig_input_data, "control rig") or not uiUtils.check_train_data(jnt_input_data, "joint"):
+            return
 
         import generate_train_data
         reload(generate_train_data)
-        #generate_train_data.generate_data(rig_input_data=rig_data, jnt_input_data=jnt_data,
-        #                            rig_out=rig_path, jnt_out=jnt_path)
+        generate_train_data.generate_data(rig_input_data=rig_input_data, jnt_input_data=jnt_input_data,
+                                        rig_out=rig_path, jnt_out=jnt_path, train_poses=train_poses)
 
 
     def train_model(self):

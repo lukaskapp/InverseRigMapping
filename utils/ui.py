@@ -120,8 +120,6 @@ def saveFileDialog(widget, lineEdit, dialog_header, file_types):
     if fileName:
         if not fileName.endswith(f".{file_types}"):
             fileName += f".{file_types}"
-        #with open(fileName, 'w') as f: 
-        #    json.dump({}, f)
         lineEdit.setText(fileName)
 
 
@@ -132,8 +130,6 @@ def openFileDialog(widget, lineEdit, dialog_header, file_types):
     if fileName:
         if not fileName.endswith(f".{file_types}"):
             fileName += f".{file_types}"
-        #with open(fileName, 'w') as f: 
-        #    json.dump({}, f)
         lineEdit.setText(fileName)
 
 
@@ -194,7 +190,8 @@ def get_treeChildren_as_list(parent, children_list):
 
 
 def is_valid_file(path):
-    return os.path.isfile(path)
+    dir_path = os.path.dirname(path)
+    return os.path.isdir(dir_path)
 
 
 def check_file_path(path):
@@ -206,3 +203,15 @@ def check_file_path(path):
         msg.exec_()
         return False
     return True
+
+
+def check_train_data(data, data_type):
+    parameters = [param for param in data.values() if param]
+    if not parameters:
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Critical)
+        msg.setText(f"No {data_type} parameters found!")
+        msg.setWindowTitle("Data Error")
+        msg.exec_()
+        return False
+    return True  
