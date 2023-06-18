@@ -4,6 +4,7 @@ import maya.OpenMayaUI as omui
 import maya.OpenMaya as om
 import maya.cmds as cmds
 from functools import partial
+import os
 from imp import reload
 
 import utils.maya as mUtils
@@ -98,7 +99,6 @@ def add_tree_item(treeWidget, name, jnt_mode=False):
         font = parent.font(0)
         font.setBold(True)
         parent.setFont(0, font)
-        
 
 
         for attr in attr_list:
@@ -106,15 +106,29 @@ def add_tree_item(treeWidget, name, jnt_mode=False):
             parent.addChild(child)
             #child.setFlags(child.flags() | QtCore.Qt.ItemIsEditable)
             child.setText(0, attr)
-            child.setText(1, "-50.000")
-            child.setText(2, "50.000")
+            if treeWidget.columnCount() > 1:
+                child.setText(1, "-50.000")
+                child.setText(2, "50.000")
         
         treeWidget.expandItem(parent)
 
 
 def saveFileDialog(widget, lineEdit, dialog_header, file_types):
+    start_dir = lineEdit.text()
     options = QtWidgets.QFileDialog.Options()
-    fileName, _ = QtWidgets.QFileDialog.getSaveFileName(widget, dialog_header, "", f"{file_types.upper()} Files (*.{file_types})", options=options)
+    fileName, _ = QtWidgets.QFileDialog.getSaveFileName(widget, dialog_header, start_dir, f"{file_types.upper()} Files (*.{file_types})", options=options)
+    if fileName:
+        if not fileName.endswith(f".{file_types}"):
+            fileName += f".{file_types}"
+        #with open(fileName, 'w') as f: 
+        #    json.dump({}, f)
+        lineEdit.setText(fileName)
+
+
+def openFileDialog(widget, lineEdit, dialog_header, file_types):
+    start_dir = lineEdit.text()
+    options = QtWidgets.QFileDialog.Options()
+    fileName, _ = QtWidgets.QFileDialog.getOpenFileName(widget, dialog_header, start_dir, f"{file_types.upper()} Files (*.{file_types})", options=options)
     if fileName:
         if not fileName.endswith(f".{file_types}"):
             fileName += f".{file_types}"
@@ -149,3 +163,46 @@ def delete_items(treeWidget):
     selected_items = treeWidget.selectedItems()
     for item in selected_items:
         (item.parent() or treeWidget.invisibleRootItem()).removeChild(item)
+
+
+def get_treeItems_as_dict(treeWidget):
+    item_dict = {}
+    root = treeWidget.invisibleRootItem()
+    for i in range(root.childCount()):
+        parent_item = root.child(i)
+        parent_name = parent_item.text(0)
+        item_dict[parent_name] = []
+        get_treeChildren_as_list(parent_item, item_dict[parent_name])
+
+    return item_dict
+
+
+def get_treeChildren_as_list(parent, children_list):
+    for i in range(parent.childCount()):
+        child_item = parent.child(i)
+        child_name = child_item.text(0)
+
+        num_columns = child_item.columnCount()
+        if num_columns == 3:
+            child_min_range = child_item.text(1)
+            child_max_range = child_item.text(2)
+            children_list.append([child_name, child_min_range, child_max_range])
+        elif num_columns == 1:
+            children_list.append([child_name])
+
+        get_treeChildren_as_list(child_item, children_list)
+
+
+def is_valid_file(path):
+    return os.path.isfile(path)
+
+
+def check_file_path(path):
+    if not is_valid_file(path):
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Critical)
+        msg.setText("Invalid file path: " + path)
+        msg.setWindowTitle("File Error")
+        msg.exec_()
+        return False
+    return True

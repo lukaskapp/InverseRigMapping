@@ -1,7 +1,8 @@
 from PySide2 import QtCore, QtWidgets, QtGui
-import maya.cmds as cmds
 from functools import partial
 import json
+import pathlib
+import os
 from imp import reload
 
 import utils.ui as uiUtils
@@ -35,13 +36,13 @@ class DataGenWidget(QtWidgets.QWidget):
         self.rig_tree.setItemDelegate(uiUtils.EditableItemDelegate(self.rig_tree))
         self.rig_tree.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
-        header = self.rig_tree.header()
-        header.setStretchLastSection(False)
-        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QtWidgets.QHeaderView.Interactive)
-        header.setSectionResizeMode(2, QtWidgets.QHeaderView.Interactive)
-        header.resizeSection(1, 100)
-        header.resizeSection(2, 100)
+        rig_header = self.rig_tree.header()
+        rig_header.setStretchLastSection(False)
+        rig_header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        rig_header.setSectionResizeMode(1, QtWidgets.QHeaderView.Interactive)
+        rig_header.setSectionResizeMode(2, QtWidgets.QHeaderView.Interactive)
+        rig_header.resizeSection(1, 100)
+        rig_header.resizeSection(2, 100)
 
 
         # joint widgets
@@ -56,6 +57,10 @@ class DataGenWidget(QtWidgets.QWidget):
         self.jnt_tree.setHeaderLabels(['Joint Name'])
         self.jnt_tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.jnt_tree.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+
+        jnt_header = self.jnt_tree.header()
+        jnt_header.setStretchLastSection(False)
+        jnt_header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
 
 
         # train data settings
@@ -101,13 +106,15 @@ class DataGenWidget(QtWidgets.QWidget):
 
         # output settings
         self.outRig_label = QtWidgets.QLabel("Control Rig File:")
-        self.outRig_line = QtWidgets.QLineEdit("irm_rig_data.csv")
+        self.outRig_line = QtWidgets.QLineEdit()
+        self.outRig_line.setText(str(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig/irm_rig_data.csv")))
         self.outRig_line.setReadOnly(True)
         self.outRig_btn = QtWidgets.QPushButton("<")
         self.outRig_btn.setFixedSize(20,20)
 
         self.outJnt_label = QtWidgets.QLabel("Joint File:")
-        self.outJnt_line = QtWidgets.QLineEdit("irm_rig_data.csv")
+        self.outJnt_line = QtWidgets.QLineEdit()
+        self.outJnt_line.setText(str(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt/irm_jnt_data.csv")))
         self.outJnt_line.setReadOnly(True)
         self.outJnt_btn = QtWidgets.QPushButton("<")
         self.outJnt_btn.setFixedSize(20,20)
@@ -116,7 +123,8 @@ class DataGenWidget(QtWidgets.QWidget):
         self.outSpacer01_label.setFixedHeight(10)
 
         self.outModel_label = QtWidgets.QLabel("Model File:")
-        self.outModel_line = QtWidgets.QLineEdit("trained_model.pt")
+        self.outModel_line = QtWidgets.QLineEdit()
+        self.outModel_line.setText(str(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model/trained_model.pt")))
         self.outModel_line.setReadOnly(True)
         self.outModel_btn = QtWidgets.QPushButton("<")
         self.outModel_btn.setFixedSize(20,20)
@@ -126,7 +134,7 @@ class DataGenWidget(QtWidgets.QWidget):
 
 
         # buttons
-        self.generate_btn = QtWidgets.QPushButton("Generate Data")
+        self.generate_btn = QtWidgets.QPushButton("Generate Train Data")
         self.train_btn = QtWidgets.QPushButton("Train Model")
 
 
@@ -381,26 +389,24 @@ class DataGenWidget(QtWidgets.QWidget):
 
 
     def generate_train_data(self):
-        rig_input_data = []
-        for row in range(self.rig_table.rowCount()):
-            item = self.rig_table.item(row, 0)
-            if item:
-                rig_input_data.append(item.text())
+        rig_input_data = uiUtils.get_treeItems_as_dict(treeWidget=self.rig_tree)
+        jnt_input_data = uiUtils.get_treeItems_as_dict(treeWidget=self.jnt_tree)
 
-
-        jnt_input_data = []
-        for row in range(self.jnt_table.rowCount()):
-            item = self.jnt_table.item(row, 0)
-            if item:
-                jnt_input_data.append(item.text())
+        rig_path = self.outRig_line.text()
+        jnt_path = self.outJnt_line.text()
 
         print("RIG INPUT DATA: ", rig_input_data)
+        print("RIG OUT PATH: ", rig_path)
         print("JNT INPUT DATA: ", jnt_input_data)      
+        print("JNT OUT PATH: ", jnt_path)
 
+        uiUtils.check_file_path(path=rig_path)
+        uiUtils.check_file_path(path=jnt_path)
 
-        import prep_training_data
-        reload(prep_training_data)
-        prep_training_data.prep_data(rig_input_data, jnt_input_data)
+        import generate_train_data
+        reload(generate_train_data)
+        #generate_train_data.generate_data(rig_input_data=rig_data, jnt_input_data=jnt_data,
+        #                            rig_out=rig_path, jnt_out=jnt_path)
 
 
     def train_model(self):
@@ -436,17 +442,25 @@ class PredictWidget(QtWidgets.QWidget):
         self.anim_tree.setItemDelegate(uiUtils.EditableItemDelegate(self.anim_tree))
         self.anim_tree.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
-        header = self.anim_tree.header()
-        header.setStretchLastSection(False)
-        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        anim_header = self.anim_tree.header()
+        anim_header.setStretchLastSection(False)
+        anim_header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
 
 
 
         # predict settings
         self.setting_widget = QtWidgets.QWidget()
 
-        self.outJnt_label = QtWidgets.QLabel("Joint Train Data:")
-        self.outJnt_line = QtWidgets.QLineEdit("irm_rig_data.csv")
+        self.outRig_label = QtWidgets.QLabel("Control Rig Data:")
+        self.outRig_line = QtWidgets.QLineEdit()
+        self.outRig_line.setText(str(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig/irm_rig_data.csv")))
+        self.outRig_line.setReadOnly(True)
+        self.outRig_btn = QtWidgets.QPushButton("<")
+        self.outRig_btn.setFixedSize(20,20)
+
+        self.outJnt_label = QtWidgets.QLabel("Joint Data:")
+        self.outJnt_line = QtWidgets.QLineEdit()
+        self.outJnt_line.setText(str(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt/irm_jnt_data.csv")))
         self.outJnt_line.setReadOnly(True)
         self.outJnt_btn = QtWidgets.QPushButton("<")
         self.outJnt_btn.setFixedSize(20,20)
@@ -455,7 +469,8 @@ class PredictWidget(QtWidgets.QWidget):
         self.outSpacer01_label.setFixedHeight(10)
 
         self.outModel_label = QtWidgets.QLabel("Trained Model:")
-        self.outModel_line = QtWidgets.QLineEdit("trained_model.pt")
+        self.outModel_line = QtWidgets.QLineEdit()
+        self.outModel_line.setText(str(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model/trained_model.pt")))
         self.outModel_line.setReadOnly(True)
         self.outModel_btn = QtWidgets.QPushButton("<")
         self.outModel_btn.setFixedSize(20,20)
@@ -514,6 +529,10 @@ class PredictWidget(QtWidgets.QWidget):
         predictAlign_widget.setFixedHeight(1)
         predict_layout.addWidget(predictAlign_widget, 0, 0)
 
+        predict_layout.addWidget(self.outRig_label, 1, 0)
+        predict_layout.addWidget(self.outRig_line, 1, 1)
+        predict_layout.addWidget(self.outRig_btn, 1, 2)
+
         predict_layout.addWidget(self.outJnt_label, 2, 0)
         predict_layout.addWidget(self.outJnt_line, 2, 1)
         predict_layout.addWidget(self.outJnt_btn, 2, 2)
@@ -552,18 +571,21 @@ class PredictWidget(QtWidgets.QWidget):
         self.anim_tree.itemChanged.connect(self.anim_tree.checkIfEmpty)
 
         # predict settings
+        self.outRig_btn.clicked.connect(self.set_rigData_outPath)
         self.outJnt_btn.clicked.connect(self.set_jntData_outPath)
         self.outModel_btn.clicked.connect(self.set_model_outPath)
 
         self.predict_btn.clicked.connect(self.map_prediction)
         
 
-    def set_jntData_outPath(self):
-        uiUtils.saveFileDialog(self, self.outJnt_line, "Load Joint Train Data", "csv")
+    def set_rigData_outPath(self):
+        uiUtils.openFileDialog(self, self.outRig_line, "Load Control Rig Train Data", "csv")
 
+    def set_jntData_outPath(self):
+        uiUtils.openFileDialog(self, self.outJnt_line, "Load Joint Train Data", "csv")
 
     def set_model_outPath(self):
-        uiUtils.saveFileDialog(self, self.outModel_line, "Load Trained Model", "pt")
+        uiUtils.openFileDialog(self, self.outModel_line, "Load Trained Model", "pt")
 
     def add_tree_item(self, treeWidget, label, jnt_mode):
         uiUtils.add_selection(treeWidget, jnt_mode)
