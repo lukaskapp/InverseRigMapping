@@ -9,14 +9,7 @@ import pathlib
 import os
 from torch.cuda.amp import autocast, GradScaler
 
-import utils.multiquadric_kernel as mqk
-reload(mqk)
 
-import utils.dataLoader as dataLoader
-reload(dataLoader)
-
-import utils.fps as fps
-reload(fps)
 
 # enable GPU/CUDA if available
 if torch.cuda.is_available(): 
@@ -32,9 +25,6 @@ class BatchIndependentMultitaskGPModel(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, train_y_dimension):
         super().__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean(batch_shape=torch.Size([train_y_dimension]))
-        #self.covar_module = gpytorch.kernels.ScaleKernel(
-        #    mqk.MultiquadricKernel(batch_shape=torch.Size([train_y_dimension])),
-        #    batch_shape=torch.Size([train_y_dimension])
         self.covar_module = gpytorch.kernels.ScaleKernel(
             gpytorch.kernels.RBFKernel(batch_shape=torch.Size([train_y_dimension])),
             batch_shape=torch.Size([train_y_dimension])
@@ -76,13 +66,10 @@ def build_train_x_tensor(jnt_file):
     
     raw_train_x = jnt_dataset.iloc[:, 3:].values.tolist() # create list with entries of all attribute columns
     
-    
     # normalisation: -1.0 to 1.0
     attr_list = jnt_dataset.columns.values[3:].tolist()
     normalise_index_list = [attr_list.index(attr) for attr in attr_list if not "rotMtx_" in attr]
     
-    #train_x_min, train_x_max = -170.0, 35.0
-    #train_x_min, train_x_max = -50.0, 200.0
     train_x_min, train_x_max = -50.0, 50.0
     #train_x_min, train_x_max = train_x_trans.min(), train_x_trans.max()
     new_min, new_max = -1.0, 1.0
@@ -124,6 +111,9 @@ def build_train_y_tensor(rig_file):
 #rig_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig/irm_rig_data.csv")
 #jnt_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt/irm_jnt_data.csv")
 #model_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model/trained_model.pt")
+#lr = 0.1
+#epochs = 100
+#force_cpu = False
 
 def train_model(rig_path, jnt_path, model_path, lr, epochs, force_cpu):
     # build tensors
@@ -134,24 +124,10 @@ def train_model(rig_path, jnt_path, model_path, lr, epochs, force_cpu):
     #train_y = train_y.float()
     #train_y = train_y.cpu().numpy()
 
-    #k = 10
-    #train_x_subsampled_indices = fps.farthest_point_sampling(train_x, k)
-    #train_x_subsampled = train_x.index_select(0, torch.tensor(train_x_subsampled_indices))
-    #train_y_subsampled = train_y.index_select(0, torch.tensor(train_x_subsampled_indices))
-
-
-
-    #dataset = dataLoader.IrmDataLoader(train_x, train_y)
-    #train_dataset = torch.utils.data.TensorDataset(train_x_subsampled, train_y_subsampled)
-
-    #dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True)
-
 
     likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=train_y_dimension)
     likelihood.to(device)
-    #model = MultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
     model = BatchIndependentMultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
-    #model = BatchIndependentMultitaskGPModel(None, None, likelihood, train_y_dimension)
     model.to(device)
 
     # Find optimal model hyperparameters
@@ -159,38 +135,13 @@ def train_model(rig_path, jnt_path, model_path, lr, epochs, force_cpu):
     likelihood.train()
 
     # Use the adam optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)  # lr = learning rate
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # lr = learning rate
 
     # "Loss" for GPs - the marginal log likelihood
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
-    scaler = GradScaler()
-    training_iterations = 50
-    for i in range(training_iterations):
-        #for batch_train_x, batch_train_y in dataloader:
-            # Update the model with the current batch of data
-            #model.set_train_data(inputs=batch_train_x, targets=batch_train_y, strict=False)
-
-            # Perform your training steps here
-            #optimizer.zero_grad()
-            #with gpytorch.settings.use_toeplitz(False), torch.autograd.set_detect_anomaly(True):
-            #    output = model(batch_train_x)
-            #    loss = -mll(output, batch_train_y)
-            #loss.backward()
-            #optimizer.step()
-        #print('Iter %d/%d - Loss: %.3f' % (i + 1, training_iterations, loss.item()))
-
-        
+    for i in range(epochs):       
         optimizer.zero_grad()
-
-        #with autocast():
-        #    output = model(train_x)
-        #    loss = -mll(output, train_y)
-        #scaler.scale(loss).backward()
-        #scaler.step(optimizer)
-        #scaler.update()
-
-
         output = model(train_x)
         loss = -mll(output, train_y)
         loss.backward()
@@ -201,10 +152,4 @@ def train_model(rig_path, jnt_path, model_path, lr, epochs, force_cpu):
     model.eval()
     likelihood.eval()
 
-    save_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), model_file)
-    torch.save(model.state_dict(), save_path) # save trained model parameters
-
-
-
-if __name__ == "__main__":
-    train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv", model_file="trained_model.pt")
+    torch.save(model.state_dict(), model_path) # save trained model parameters
