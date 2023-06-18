@@ -5,11 +5,9 @@ import pathlib
 import maya.api.OpenMaya as om
 
 
-def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv",  model_file="trained_model.pt"):
+def train_model(py_app, rig_path="irm_rig_data.csv", jnt_path="irm_jnt_data.csv", model_path="trained_model.pt", lr=0.01, epochs=100, force_cpu=False):
     py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
-    py_app = pathlib.PurePath(py_path.parent, pathlib.Path("venv/Scripts/python.exe")).as_posix()
-
-    py_cmd = "import sys; sys.path.append('{}'); import gpr_model as gpr; gpr.train_model()".format(py_path)
+    py_cmd = f"import sys; sys.path.append('{py_path}'); import gpr_model as gpr; gpr.train_model('{rig_path}', '{jnt_path}', '{model_path}', {lr}, {epochs}, {force_cpu})"
     
     command = [py_app, "-c", py_cmd]
     print(command)
@@ -24,3 +22,6 @@ def train_model(rig_fileName="irm_rig_data.csv", jnt_fileName="irm_jnt_data.csv"
 
 if __name__ == "__main__":
     train_model()
+
+
+['R:/diploma_inverse_rig_mapping/venv/Scripts/python.exe', '-c', "import sys; sys.path.append('R:\\diploma_inverse_rig_mapping\\code_inverseRigMapping'); import gpr_model as gpr; gpr.train_model('R:\\diploma_inverse_rig_mapping\\code_inverseRigMapping\\training_data\\rig\\irm_rig_data.csv', 'R:/diploma_inverse_rig_mapping/code_inverseRigMapping/training_data/jnt/irm_jnt_data.csv', 'R:/diploma_inverse_rig_mapping/code_inverseRigMapping/trained_model/trained_model.pt', 0.01, 100, False)"]

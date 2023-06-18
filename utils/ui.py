@@ -189,13 +189,16 @@ def get_treeChildren_as_list(parent, children_list):
         get_treeChildren_as_list(child_item, children_list)
 
 
-def is_valid_file(path):
+def is_valid_dir(path):
     dir_path = os.path.dirname(path)
     return os.path.isdir(dir_path)
 
+def is_valid_file(path):
+    return os.path.isfile(path)
 
-def check_file_path(path):
-    if not is_valid_file(path):
+
+def check_dir_path(path):
+    if not is_valid_dir(path):
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Critical)
         msg.setText("Invalid file path: " + path)
@@ -215,3 +218,14 @@ def check_train_data(data, data_type):
         msg.exec_()
         return False
     return True  
+
+
+def check_file_path(path):
+    if not is_valid_file(path):
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Critical)
+        msg.setText("Invalid file path: " + path)
+        msg.setWindowTitle("File Error")
+        msg.exec_()
+        return False
+    return True
