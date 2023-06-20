@@ -104,3 +104,9 @@ ENV/
 
 # IDE settings
 .vscode/
+
+# csv files
+*.csv
+
+# pytorch models
+*.pt
