@@ -1,7 +1,7 @@
-Inverse Rig Mapping
+# Inverse Rig Mapping
 ===============
 
-1. Introduction
+## 1. Introduction
 ===============
 Inverse Rig Mapping is a toolset for Maya to map skeletal animation data e.g. mocap data back to arbitrary character rigs using machine learning. It is based on the paper "Learning an inverse rig mapping for character animation". The machine learning model learns the correlation between the rig control parameters and the dependent joint parameters. After learning, it can predict these rig control parameters based on the skeletal animation data.
 
@@ -9,7 +9,7 @@ The common workflow for mapping skeletal animation back to rigs is to use retarg
 
 
 
-2. Installation
+## 2. Installation
 ===============
 The toolset has been developed and tested on Windows 10/11 using Autodesk Maya 2022.4, 2023.3 and 2024.0.1 and Python 3.10.11.
 
@@ -31,11 +31,11 @@ Last but not least, install the tool in Maya: open the file "install_maya.py" in
 
 
 
-3. Workflow & Settings
+## 3. Workflow & Settings
 ===============
-3.1 Data Generation
+### 3.1 Data Generation
 ===============
-3.1.1 Train Parameters
+#### 3.1.1 Train Parameters
 ===============
 To get started, you need data that will later be used to train the machine learning model. There are two separate areas in the interface for adding the control rig and the joint parameters. Simply select any control in your rig (NURBS curves/surfaces and meshes are accepted) and press the 'Add' button. This will add every keyable and scalar attribute of the selected control to the tree view. You can remove specific attributes by right-clicking on them and selecting 'Delete' - this also works with multi-selection. You can reset the Parameter UI using the 'Clear All' button.
 
@@ -44,33 +44,33 @@ The same applies to the joint parameters at the bottom. Simply select all the jo
 The order of the parameters doesn't matter, as they will be reordered when the training data is generated to ensure the same order every time, regardless of the selection.
 
 
-3.1.2 Min/Max Range
+#### 3.1.2 Min/Max Range
 ===============
 For a better prediction of the animation later on, it is important to set correct and plausible ranges for each rig parameter. Only this range will be used for training and therefore the model can only predict correct values for this range later on - so if your maximum range for translateX is 50, but your expected predicted value would be 100, the model will have a hard time predicting this as it hasn't been trained for this range. You can change the range of a single or multiple parameters by selecting them and using the "Minimum" and "Maximum" fields on the right hand side of the "Generator Settings". For rotation, you don't need to go beyond 180, as a range of -180 to 180 is the full possible range for rotations.
 
 IMPORTANT: In general, only the given parameters are used for the prediction part, so if you exclude e.g. translateX, it won't be predicted later. The same goes for the attribute ranges you set - if the skeletal animation later goes beyond that range, it will have a hard time predicting the rig control values. Getting this right is vital for the best and most efficient result.
 
 
-3.1.3 Number of Poses
+#### 3.1.3 Number of Poses
 ===============
 The number of poses defines the number of random steps between the min/max range, so 1000 means there will be 1000 different steps between the min and max value. In general the number of poses should be high enough to get a sufficient training result, more poses and therefore more data can greatly improve the training but will also increase the training time and the amount of memory needed which may be too much for the current workstation. 1000 poses is a good starting point and you can slowly go up to 5000 if you like - it always depends on the rig and the amount of parameters.
 
 
-3.1.4 Output Files
+#### 3.1.4 Output Files
 ===============
 The last step is to specify a path where the generated data will be stored. By default this will be "IRM_folder/training_data/jnt" and "IRM_folder/training_data/jnt" - feel free to use these default paths.
 
 
-3.1.5 Generate Train Data
+#### 3.1.5 Generate Train Data
 ===============
 Once everything is set up, all you need to do is press the 'Generate Train Data' button. This will take a moment, depending on the amount of train parameters and the number of poses. In general, it should only take a few seconds to a few minutes. When it is finished, you will find the generated rig and joint data as CSV files in the directories provided.
 
 
 
 
-3.2 Model Training
+### 3.2 Model Training
 ===============
-3.2.1 Learning Rate
+#### 3.2.1 Learning Rate
 ===============
 The learning rate describes how fast your model is learning, essentially describing the steps through the data. If it is too high, the model may converge too quickly, potentially missing important patterns in the data. If it's too low, the model may take too long to learn and/or get stuck. Typical learning rates are between 0.1 and 0.0001.
 
