@@ -1,8 +1,6 @@
 # Inverse Rig Mapping
-===============
 
 ## 1. Introduction
-===============
 Inverse Rig Mapping is a toolset for Maya to map skeletal animation data e.g. mocap data back to arbitrary character rigs using machine learning. It is based on the paper "Learning an inverse rig mapping for character animation". The machine learning model learns the correlation between the rig control parameters and the dependent joint parameters. After learning, it can predict these rig control parameters based on the skeletal animation data.
 
 The common workflow for mapping skeletal animation back to rigs is to use retargeting tools like Maya's HumanIK, constraint setups, or creating custom scripts that work for the specific character rig. All of these workflows have some sort of limitation, are often time consuming and not flexible for different rigs. The Inverse Rig Mapping (IRM) tool aims to solve this problem by providing a flexible and easy-to-use workflow that works with any rig - at least as long as the model can understand the correlation between rig control and joint parameters. Currently the tool only works with simpler rigs - see the limitations section below for more details.
@@ -10,7 +8,6 @@ The common workflow for mapping skeletal animation back to rigs is to use retarg
 
 
 ## 2. Installation
-===============
 The toolset has been developed and tested on Windows 10/11 using Autodesk Maya 2022.4, 2023.3 and 2024.0.1 and Python 3.10.11.
 
 
@@ -32,11 +29,8 @@ Last but not least, install the tool in Maya: open the file "install_maya.py" in
 
 
 ## 3. Workflow & Settings
-===============
 ### 3.1 Data Generation
-===============
 #### 3.1.1 Train Parameters
-===============
 To get started, you need data that will later be used to train the machine learning model. There are two separate areas in the interface for adding the control rig and the joint parameters. Simply select any control in your rig (NURBS curves/surfaces and meshes are accepted) and press the 'Add' button. This will add every keyable and scalar attribute of the selected control to the tree view. You can remove specific attributes by right-clicking on them and selecting 'Delete' - this also works with multi-selection. You can reset the Parameter UI using the 'Clear All' button.
 
 The same applies to the joint parameters at the bottom. Simply select all the joints in your rig and press the 'Add' button to include every joint attribute - only joints are accepted. Any attribute that has incoming connections and is therefore influenced by other nodes will be added to the tree view. You can also delete certain joint attributes to exclude them from training. Your UI should now look something like this:
