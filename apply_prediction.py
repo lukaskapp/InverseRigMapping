@@ -16,31 +16,50 @@ def chunks(lst, n):
     """split list into n-sized chunks"""
     return [lst[i:i + n] for i in range(0, len(lst), n)]
 
-def get_predict_data(anim_path):
-    py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
-    py_app = pathlib.PurePath(py_path.parent, pathlib.Path("venv/Scripts/python.exe")).as_posix()
 
-    py_cmd = "import sys; sys.path.append('{}'); import gpr_predict; gpr_predict.predict_data('{}')".format(py_path, anim_path)
+def get_predict_data(anim_path, model_path, rig_path, py_app):
+    py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
+
+    py_cmd = f"import sys; sys.path.append('{py_path}'); import gpr_predict; gpr_predict.predict_data('{anim_path}', '{model_path}', '{rig_path}')"
     
-    command = [py_app, "-c", py_cmd]
-    process = subprocess.run(command, capture_output=True, text=True)
+    command = [py_app, "-u", "-c", py_cmd]
+    # start subprocess; prevent output window
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+
+    # update progress bar
+
+    for line in iter(process.stdout.readline, ""):
+        if line.startswith("PROGRESS "):
+            progress = float(line.strip().split(" ")[1])
+            if cmds.progressWindow(query=True, isCancelled=True):
+                process.kill()
+                break
+            cmds.progressWindow(edit=True, progress=progress, status=(f'Progress: {progress} %'))
+
+    process.wait()
 
     if process.returncode:
-        raise ValueError(process.stderr)
+        error_message = process.stderr.read()
+        raise ValueError(error_message)
     else:
-        print(process.stdout)
         om.MGlobal.displayInfo("Data predicted successfully!")
 
-        return process.stdout.rpartition("PREDICT DATA")[2]
 
 
-def map_data():
-    anim_path, frames = prep_anim_data.prep_data()
-    get_predict_data(anim_path)
+def map_data(anim_input_data, jnt_path, rig_path, model_path, py_app):
+    # Initialize the progress window
+    cmds.progressWindow(title='Map Prediction', progress=0, status='Getting Animation Data...', isInterruptable=True)
 
-    predict_name = "irm_predict_data.csv"
-    predict_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "predict_data", predict_name)
+    # get animation data
+    anim_path, frames = prep_anim_data.prep_data(anim_input_data, jnt_path)
 
+    # predict data
+    cmds.progressWindow(edit=True, progress=0, status=('Initialize Prediction...'))
+    get_predict_data(anim_path, model_path, rig_path, py_app)
+
+    cmds.progressWindow(edit=True, progress=0, status=('Applying Prediction...'))
+    predict_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "predict_data/irm_predict_data.csv")    
     with open(predict_path, "r") as csvfile:
         reader = csv.reader(csvfile)
         header = next(reader, None) # skip header
@@ -81,9 +100,9 @@ def map_data():
                     cmds.setAttr("{}.shearXY".format(ctrl), 0.0)
                     cmds.setAttr("{}.shearXZ".format(ctrl), 0.0)
                     cmds.setAttr("{}.shearYZ".format(ctrl), 0.0)
-                
+
+            cmds.progressWindow(edit=True, progress=(i/len(predict_data))*100, status=('Applying Prediction...'))  
         cmds.currentTime(current_frame)
-            
-    
-#if __name__ == "__main__":
-#    map_data()
+
+    cmds.progressWindow(endProgress=True) 
+ 

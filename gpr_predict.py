@@ -7,174 +7,125 @@ import csv
 from importlib import reload
 import pathlib
 import os
-import torch.autograd.profiler as profiler
-
 
 import gpr_model as gpr
 reload(gpr)
 
-
-# enable GPU/CUDA if available
-if torch.cuda.is_available(): 
-    dev = "cuda:0" 
-else: 
-    dev = "cpu"
-dev = "cpu" 
-device = torch.device(dev)
+import utils.pytorch as torchUtils
+reload(torchUtils)
 
 
-def matrix_to_6d(rot_mat):
-    # Use the first two columns of the rotation matrix to get the 6D representation
-    return rot_mat[:, :2].reshape(-1)
-
-
-def _6d_to_matrix(rot_6d):
-    # Reshape the 6D representation back to a 3x2 matrix
-    mat = rot_6d.view(3, 2)
-
-    # Calculate the third column of the rotation matrix as the cross product of the first two columns
-    third_col = torch.cross(mat[:, 0], mat[:, 1]).unsqueeze(1)
-
-    # Construct the full rotation matrix
-    return torch.cat((mat, third_col), dim=1)
-
-
-def convert_tensor_to_6d(tensor, numObjs):
-    tensor_rotMtx = tensor.reshape(-1, numObjs, 3, 3)
-    tensor_6d = []
-    for entry in tensor_rotMtx:
-        temp = []
-        for obj in entry:
-            rot_6d = matrix_to_6d(obj)
-            temp.append(rot_6d.cpu().numpy())
-        tensor_6d.append(temp)
-    out_tensor = torch.from_numpy(np.array(tensor_6d)).float()
-
-    return out_tensor
-
-#anim_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "irm_anim_data.csv")
-def predict_data(anim_path):
+#anim_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "irm_anim_data.csv").as_posix()
+#model_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model/trained_model.pt").as_posix()
+#rig_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig/irm_rig_data.csv").as_posix()
+def predict_data(anim_path, model_path, rig_path):
     # load trained model
-    rig_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig", "irm_rig_data.csv")
-    jnt_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt", "irm_jnt_data.csv")
-    train_x = gpr.build_train_x_tensor(jnt_file)
-    train_y, train_y_dimension = gpr.build_train_y_tensor(rig_file)
+    state_dict = torch.load(model_path)
+    force_cpu = state_dict["force_cpu"]
 
-    model_file = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model.pt")
-    state_dict = torch.load(model_file)
+    # enable GPU/CUDA if available
+    if torch.cuda.is_available() and not force_cpu: 
+        dev = "cuda:0" 
+    else: 
+        dev = "cpu" 
+    device = torch.device(dev)
 
-    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=train_y_dimension)
-    likelihood.to(device)
+    train_x = state_dict["train_x"]
+    train_x = train_x.to(device)
+    train_y = state_dict["train_y"]
+    train_y = train_y.to(device)
+    train_x_dimension = state_dict["x_dim"]
+    train_y_dimension = state_dict["y_dim"]
 
-    #model = gpr.MultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
-    model = gpr.BatchIndependentMultitaskGPModel(train_x, train_y, likelihood, train_y_dimension)
-    model.to(device)
+    x_min = state_dict["x_min"].to(device)
+    x_max = state_dict["x_max"].to(device)
+    x_mean = state_dict["x_mean"].to(device)
+
+    y_min = state_dict["y_min"].to(device)
+    y_max = state_dict["y_max"].to(device)
+    y_mean = state_dict["y_mean"].to(device)
+
+    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=train_y_dimension).to(device)
+
+    model = gpr.BatchIndependentMultitaskGPModel(train_x, train_y, likelihood, force_cpu, train_x_dimension,
+                                            train_y_dimension, x_min,x_max, x_mean, y_min, y_max, y_mean).float().to(device)
     model.load_state_dict(state_dict)
+
     model.eval()
     likelihood.eval()
-
+    print("PROGRESS 20")
 
     # load anim data
+    print("PROGRESS 40")
+
     anim_dataset = pd.read_csv(anim_path, na_values='?', comment='\t', sep=',', skipinitialspace=True, header=[0])
+    print("PROGRESS 40")
 
-    # get number of objs in first column and mult it with len of data entries
-    anim_x_depth =  len(np.unique(anim_dataset.iloc[:, :1]))
-    anim_data_frames = int(len(anim_dataset)/anim_x_depth)
-    anim_dimension = len(anim_dataset.iloc[:, 3:].values[0])
+    anim_numObjs = len(np.unique(anim_dataset.iloc[:, 1]))
+    print("PROGRESS 40")
 
-    raw_anim_x = np.array(anim_dataset.iloc[:, 3:]).reshape(-1, anim_dimension)
+    anim_frame_len = int(len(anim_dataset.iloc[:, 1])/anim_numObjs)
+    print("PROGRESS 40")
 
-    # normalisation: -1.0 to 1.0
-    attr_list = anim_dataset.columns.values[3:].tolist()
-    normalise_index_list = [attr_list.index(attr) for attr in attr_list if not "rotMtx_" in attr]
-
-    #anim_x_min, anim_x_max = -170.0, 35.0
-    #anim_x_min, anim_x_max = -50.0, 200.0
-    anim_x_min, anim_x_max = -50.0, 50.0
-    new_min, new_max = -1.0, 1.0
-
-    normalised_anim_x = raw_anim_x
-    for entry_index, entry in enumerate(normalised_anim_x):
-        for value_index, value in enumerate(entry):
-            if value_index in normalise_index_list:
-                value_norm = (value - anim_x_min) / (anim_x_max - anim_x_min) * (new_max - new_min) + new_min
-                normalised_anim_x[entry_index][value_index] = value_norm
-
-    cleaned_anim_x = np.array([entry for row in normalised_anim_x for entry in row if str(entry) != "nan"]) # remove n/a entries from data
-    anim_x_rotMtx = torch.from_numpy(cleaned_anim_x.reshape(anim_data_frames, -1)).float()
-
-    anim_x_norm = convert_tensor_to_6d(anim_x_rotMtx, anim_x_depth).reshape(anim_data_frames, -1)
-    anim_x_norm = anim_x_norm.to(device)
-
+    anim_x, anim_quat_dim, min_val, max_val, mean_val, anim_concat = gpr.build_data_tensor(anim_path, min_val=x_min.to("cpu"), max_val=x_max.to("cpu"), mean_val=x_mean.to("cpu"))
+    anim_x = anim_x.to(device)
 
     # get predict values from trained model
-    #anim_x_norm = torch.randn(2, 210)
+    print("PROGRESS 40")
     predict_mean = []
     with torch.no_grad(), gpytorch.settings.fast_pred_var():
-        #for tensor in anim_x_norm:
-        #    print("TENSOR")
-        #    predict_y = likelihood(model(tensor.reshape(1, -1)))
-        #    predict_mean.append(predict_y.mean.reshape(-1).tolist())
-        predict_y = likelihood(model(anim_x_norm))
+        predict_y = likelihood(model(anim_x))
         predict_mean = predict_y.mean.tolist()
+    print("PROGRESS 70")
 
-    print("DONE")
+
     # get rig dataset used in training for building predict data
-    rig_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig", "irm_rig_data.csv")
-    train_rig_df = pd.read_csv(rig_file, na_values='?', comment='\t', sep=',', skipinitialspace=True, header=[0])
+    train_rig_df = pd.read_csv(rig_path, na_values='?', comment='\t', sep=',', skipinitialspace=True, header=[0])
+    rig_x, rig_quat_dim, rig_min, rig_max, rig_mean, rig_concat = gpr.build_data_tensor(rig_path)
 
-    rig_obj_names = np.unique(train_rig_df.iloc[:, 1]) # get names of rig objects for data mapping later
-    rig_dimension_list = train_rig_df.filter(items=["dimension"]).values[:len(rig_obj_names)] # get dimension per rig object for data mapping
+    rig_numObjs = len(np.unique(train_rig_df.iloc[:, 1]))
+    rig_highest_dim = max(train_rig_df.filter(items=["dimension"]).values[:rig_numObjs])[0]
 
+    # denormalise tensor
+    predict_tensor = torch.from_numpy(np.array(predict_mean)).to(device)
+    denorm_predict = torchUtils.denormalize_tensor(predict_tensor, y_min, y_max, y_mean)
 
-    # convert rot 6d back to rot matrix
-    predict_6d = torch.tensor(np.array(predict_mean)).reshape(anim_data_frames, anim_x_depth, -1)
-    predict_rotMtx = []
-    for entry in predict_6d:
-        temp = []
-        for obj in entry:
-            rot_mtx = _6d_to_matrix(obj)
-            temp.append(rot_mtx.cpu().numpy())
-        predict_rotMtx.append(temp)
-    predict_mean = torch.from_numpy(np.array(predict_rotMtx)).reshape(anim_data_frames, -1).float().tolist()
+    # convert predict tensor to same structure of dataframe (with nan values)
+    attr_list = train_rig_df.columns.values[3:].tolist()
+    rotMtx_start = [attr_list.index(attr) for attr in attr_list if "rotMtx_" in attr][0]
 
+    rig_nan_tensor = torch.tensor(rig_concat.reshape(-1, (rig_highest_dim-5)*rig_numObjs)[0]).repeat(anim_frame_len, 1)
+    for entry_index, entry in enumerate(denorm_predict):
+        replace_index = 0
+        for nan_index, nan in enumerate(rig_nan_tensor[entry_index]):
+            if not np.isnan(nan):
+                rig_nan_tensor[entry_index][nan_index] = entry[replace_index]
+                replace_index += 1
+    rig_nan_tensor = rig_nan_tensor.reshape(-1, rig_highest_dim-5)
 
+    # extract values before and after quat
+    before_quat_tensor = torch.tensor(rig_nan_tensor[:, :rotMtx_start]).to(device)
+    after_quat_tensor = torch.tensor(rig_nan_tensor[:, rotMtx_start+4:]).to(device)
+    #after_quat_tensor = torch.tensor(denorm_predict[:, rotMtx_start+6:]).to(device)
 
+    # extract rot matrix and convert to quaternion
+    quat_tensor = torch.tensor(rig_nan_tensor[:, rotMtx_start:rotMtx_start+4]).reshape(-1, 4)
+    #quat_tensor = torch.tensor(denorm_predict[:, rotMtx_start:rotMtx_start+6])
+    rotMtx_tensor = torchUtils.batch_quaternion_to_rotation_matrix(quat_tensor).reshape(-1, 9).to(device)
+    #rotMtx_tensor = torchUtils._6d_to_matrix(quat_tensor).reshape(-1, 9).to(device)
+    rotMtx_predict = torch.cat((before_quat_tensor, rotMtx_tensor, after_quat_tensor), dim=1)
 
-    predict_data = []
-    for data in predict_mean:
-        start_range = 0
-        # reshape data per frame into dimensions of each rig object as in train rig data
-        for i, dimension in enumerate(rig_dimension_list):
-            # isolate predict values of single obj
-            dimension = int(dimension)
-            predict_values = data[start_range:(start_range + dimension)]
-            start_range += dimension
+    predict_rowBegin = train_rig_df.iloc[:rig_numObjs, :3].values
+    predict_data = [predict_rowBegin[i%rig_numObjs].tolist() + data.tolist() for i, data in enumerate(rotMtx_predict)]
 
-            # use train data structure as base and replace values with predicted values
-            # n/a will stay in missing columns
-            # No., rigName and dimension will be the same aswell
-            frame_data = train_rig_df.iloc[i].values.tolist()
-            value_index = 0
-            for value in frame_data[3:]:
-                if not np.isnan(value):
-                    frame_data[frame_data.index(value)] = predict_values[value_index] 
-                    value_index += 1
-            predict_data.append(frame_data)
-
-
+    print("PROGRESS 90")
     # save anim data for Maya
-    predict_name = "irm_predict_data.csv"
-    predict_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "predict_data", predict_name)
+    predict_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "predict_data/irm_predict_data.csv")
     predict_header = train_rig_df.columns.values # use header of rig train data for predict header
-
 
     with open(predict_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(predict_header)
         writer.writerows(predict_data)
 
-
-
-if __name__=="__main__":
-    predict_data(anim_path=pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "irm_anim_data.csv"))
+    print("PROGRESS 100")

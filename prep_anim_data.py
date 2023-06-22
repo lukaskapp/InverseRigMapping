@@ -7,24 +7,11 @@ import pathlib
 
 
 
-def prep_data():
-    sel_jnt = cmds.ls(sl=1)[0]
-
-    if len(sel_jnt) == 0:
-        om.MGlobal.displayError("Nothing selected! Please select one or more joints!")
-        return
-
-
-    jnt_list = [jnt for jnt in cmds.ls(sl=1, typ="joint") if "_bind" in jnt and not "_end_bind" in jnt]
+def prep_data(anim_input_data, jnt_path):
+    jnt_list = [jnt for jnt in anim_input_data.keys()]
     jnt_list.sort()
-    print("JNT LIST: ", jnt_list)
 
-
-
-
-
-    jnt_file = rig_file = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt", "irm_jnt_data.csv")
-    with open(jnt_file, "r") as f:
+    with open(jnt_path, "r") as f:
         reader = csv.reader(f)
         anim_header = next(reader, None) # get header
         jnt_data = [row for row in reader if len(row) != 0]
@@ -40,8 +27,7 @@ def prep_data():
         frames.extend(list(set(cmds.keyframe(jnt, q=1))))
     frames = list(set(frames))
 
-
-    for frame in frames:
+    for frame_index, frame in enumerate(frames):
         for i, jnt in enumerate(jnt_list):
             cmds.currentTime(frame)
             frame_data = [i, jnt, jnt_dimension_list[i]]
@@ -65,21 +51,17 @@ def prep_data():
                     frame_data[start_index + mtx_index] = rot_mtx
 
             anim_data.append(frame_data)
+        cmds.progressWindow(edit=True, progress=(frame_index/len(frames))*100, status=('Getting Animation Data...'))
+
     
     cmds.currentTime(current_frame)
-    print("FRAMES: ", frames)
-    print("DATA: ", anim_data)
-    file_name = "irm_anim_data.csv"
-    fullpath = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", file_name)
-
-
-    with open(fullpath, "w") as f:
+    
+    # save anim data as json
+    anim_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data/irm_anim_data.csv")
+    with open(anim_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(anim_header)
         writer.writerows(anim_data)
 
-    return fullpath.as_posix(), frames
+    return anim_path.as_posix(), frames
 
-
-if __name__ == "__main__":
-    prep_data()
