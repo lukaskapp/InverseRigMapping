@@ -106,7 +106,7 @@ class DataGenWidget(QtWidgets.QWidget):
         self.pyApp_label = QtWidgets.QLabel("Python Exe:")
         self.pyApp_line = QtWidgets.QLineEdit()
         py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
-        self.pyApp_line.setText(pathlib.PurePath(py_path.parent, pathlib.Path("venv/Scripts/python.exe")).as_posix())
+        self.pyApp_line.setText(pathlib.PurePath(py_path, pathlib.Path("venv/Scripts/python.exe")).as_posix())
         self.pyApp_line.setReadOnly(True)
         self.pyApp_btn = QtWidgets.QPushButton("<")
         self.pyApp_btn.setFixedSize(20,20)
@@ -508,6 +508,14 @@ class PredictWidget(QtWidgets.QWidget):
         self.outModel_btn = QtWidgets.QPushButton("<")
         self.outModel_btn.setFixedSize(20,20)
 
+        self.pyApp_label = QtWidgets.QLabel("Python Exe:")
+        self.pyApp_line = QtWidgets.QLineEdit()
+        py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
+        self.pyApp_line.setText(pathlib.PurePath(py_path, pathlib.Path("venv/Scripts/python.exe")).as_posix())
+        self.pyApp_line.setReadOnly(True)
+        self.pyApp_btn = QtWidgets.QPushButton("<")
+        self.pyApp_btn.setFixedSize(20,20)       
+
         self.outSpacer02_label = QtWidgets.QLabel()
         self.outSpacer02_label.setFixedHeight(500)
 
@@ -576,7 +584,11 @@ class PredictWidget(QtWidgets.QWidget):
         predict_layout.addWidget(self.outModel_line, 4, 1)
         predict_layout.addWidget(self.outModel_btn, 4, 2)
 
-        predict_layout.addWidget(self.outSpacer02_label, 5, 0)
+        predict_layout.addWidget(self.pyApp_label, 5, 0)
+        predict_layout.addWidget(self.pyApp_line, 5, 1)
+        predict_layout.addWidget(self.pyApp_btn, 5, 2)
+
+        predict_layout.addWidget(self.outSpacer02_label, 6, 0)
 
         settings_layout.addWidget(predict_widget)
         
@@ -607,6 +619,7 @@ class PredictWidget(QtWidgets.QWidget):
         self.outRig_btn.clicked.connect(self.set_rigData_outPath)
         self.outJnt_btn.clicked.connect(self.set_jntData_outPath)
         self.outModel_btn.clicked.connect(self.set_model_outPath)
+        self.pyApp_btn.clicked.connect(self.set_pyApp_outPath)
 
         self.predict_btn.clicked.connect(self.map_prediction)
         
@@ -620,6 +633,9 @@ class PredictWidget(QtWidgets.QWidget):
     def set_model_outPath(self):
         uiUtils.openFileDialog(self, self.outModel_line, "Load Trained Model", "pt")
 
+    def set_pyApp_outPath(self):
+        uiUtils.openFileDialog(self, self.pyApp_line, "Set Python Interpreter", "exe")
+
     def add_tree_item(self, treeWidget, label, jnt_mode):
         uiUtils.add_selection(treeWidget, jnt_mode)
         uiUtils.update_param_label(treeWidget, label)
@@ -631,9 +647,21 @@ class PredictWidget(QtWidgets.QWidget):
 
 
     def map_prediction(self):
+        anim_input_data = uiUtils.get_treeItems_as_dict(treeWidget=self.anim_tree)
+        jnt_path = self.outJnt_line.text()
+        rig_path = self.outRig_line.text()
+        model_path = self.outModel_line.text()
+        py_app = self.pyApp_line.text()
+
+        if not uiUtils.check_file_path(path=jnt_path) or not uiUtils.check_file_path(path=model_path) or not uiUtils.check_file_path(path=rig_path) or not uiUtils.check_file_path(path=py_app):
+            return
+
+        if not uiUtils.check_train_data(anim_input_data, "animation"):
+            return
+
         import apply_prediction
         reload(apply_prediction)
-        apply_prediction.map_data()
+        apply_prediction.map_data(anim_input_data, jnt_path, rig_path, model_path, py_app)
 
 
 
@@ -715,50 +743,6 @@ class IRM_UI(QtWidgets.QDialog):
         if file_name:
             pass
 
-    def add_to_recent_configs(self, file_name):
-        # Load the current list of recent configs
-        try:
-            with open('recent_configs.json', 'r') as f:
-                recent_configs = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            recent_configs = []
-
-        # Add the new config to the front of the list, removing any duplicates
-        recent_configs = [file_name] + [config for config in recent_configs if config != file_name]
-        
-        # Keep the list at a maximum of 5 items
-        recent_configs = recent_configs[:5]
-
-        # Write the list back to the file
-        with open('recent_configs.json', 'w') as f:
-            json.dump(recent_configs, f)
-
-        self.update_recent_configs()
-
-
-    def update_recent_configs(self):
-        # Clear the current menu
-        self.menu_recent.clear()
-
-        # Load the list of recent configs
-        try:
-            with open('recent_configs.json', 'r') as f:
-                recent_configs = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return
-
-        # Add each config to the menu
-        for config in recent_configs:
-            action = self.menu_recent.addAction(config)
-            action.triggered.connect(lambda config=config: self.load_recent_config(config))
-
-
-    def load_recent_config(self, file_name=None):
-        if file_name is None:  # If no file name was provided, open a file dialog
-            file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Open JSON", QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation), "JSON Files (*.json)")
-        if file_name:
-            # Load the config
-            self.add_to_recent_configs(file_name)
 
 
 
