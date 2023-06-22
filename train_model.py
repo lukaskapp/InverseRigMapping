@@ -36,6 +36,7 @@ def train_model(py_app, rig_path, jnt_path, model_path, lr=0.01, epochs=100, for
     cmds.progressWindow(endProgress=True)
 
     if process.returncode:
-        raise ValueError(process.stderr)
+        error_message = process.stderr.read()
+        raise ValueError(error_message)
     else:
         om.MGlobal.displayInfo(f"Model trained successfully in {epochs} epochs and end loss of {current_loss}")
