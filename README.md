@@ -6,7 +6,7 @@ Inverse Rig Mapping
 Inverse Rig Mapping is a toolset for Maya to map skeletal animation data e.g. mocap data back to arbitrary character rigs using machine learning. It is based on the paper "Learning an inverse rig mapping for character animation". The machine learning model learns the correlation between the rig control parameters and the dependent joint parameters. After learning, it can predict these rig control parameters based on the skeletal animation data.
 
 The common workflow for mapping skeletal animation back to rigs is to use retargeting tools like Maya's HumanIK, constraint setups, or creating custom scripts that work for the specific character rig. All of these workflows have some sort of limitation, are often time consuming and not flexible for different rigs. The Inverse Rig Mapping (IRM) tool aims to solve this problem by providing a flexible and easy-to-use workflow that works with any rig - at least as long as the model can understand the correlation between rig control and joint parameters. Currently the tool only works with simpler rigs - see the limitations section below for more details.
-===============
+
 
 
 2. Installation
@@ -27,7 +27,7 @@ More information on using CUDA with PyTorch can be found here - especially if yo
 
 
 Last but not least, install the tool in Maya: open the file "install_maya.py" in the Maya script editor and run it. This should create a shelf tool called "IRM" in the currently visible shelf. When you click on this button, the tool window will appear and you are ready to use the tool.
-===============
+
 
 
 
@@ -42,29 +42,29 @@ To get started, you need data that will later be used to train the machine learn
 The same applies to the joint parameters at the bottom. Simply select all the joints in your rig and press the 'Add' button to include every joint attribute - only joints are accepted. Any attribute that has incoming connections and is therefore influenced by other nodes will be added to the tree view. You can also delete certain joint attributes to exclude them from training. Your UI should now look something like this:
 
 The order of the parameters doesn't matter, as they will be reordered when the training data is generated to ensure the same order every time, regardless of the selection.
-===============
+
 
 3.1.2 Min/Max Range
 ===============
 For a better prediction of the animation later on, it is important to set correct and plausible ranges for each rig parameter. Only this range will be used for training and therefore the model can only predict correct values for this range later on - so if your maximum range for translateX is 50, but your expected predicted value would be 100, the model will have a hard time predicting this as it hasn't been trained for this range. You can change the range of a single or multiple parameters by selecting them and using the "Minimum" and "Maximum" fields on the right hand side of the "Generator Settings". For rotation, you don't need to go beyond 180, as a range of -180 to 180 is the full possible range for rotations.
 
 IMPORTANT: In general, only the given parameters are used for the prediction part, so if you exclude e.g. translateX, it won't be predicted later. The same goes for the attribute ranges you set - if the skeletal animation later goes beyond that range, it will have a hard time predicting the rig control values. Getting this right is vital for the best and most efficient result.
-===============
+
 
 3.1.3 Number of Poses
 ===============
 The number of poses defines the number of random steps between the min/max range, so 1000 means there will be 1000 different steps between the min and max value. In general the number of poses should be high enough to get a sufficient training result, more poses and therefore more data can greatly improve the training but will also increase the training time and the amount of memory needed which may be too much for the current workstation. 1000 poses is a good starting point and you can slowly go up to 5000 if you like - it always depends on the rig and the amount of parameters.
 
-===============
+
 3.1.4 Output Files
 ===============
 The last step is to specify a path where the generated data will be stored. By default this will be "IRM_folder/training_data/jnt" and "IRM_folder/training_data/jnt" - feel free to use these default paths.
 
-===============
+
 3.1.5 Generate Train Data
 ===============
 Once everything is set up, all you need to do is press the 'Generate Train Data' button. This will take a moment, depending on the amount of train parameters and the number of poses. In general, it should only take a few seconds to a few minutes. When it is finished, you will find the generated rig and joint data as CSV files in the directories provided.
-===============
+
 
 
 
@@ -73,27 +73,27 @@ Once everything is set up, all you need to do is press the 'Generate Train Data'
 3.2.1 Learning Rate
 ===============
 The learning rate describes how fast your model is learning, essentially describing the steps through the data. If it is too high, the model may converge too quickly, potentially missing important patterns in the data. If it's too low, the model may take too long to learn and/or get stuck. Typical learning rates are between 0.1 and 0.0001.
-===============
+
 
 3.2.2 Epochs
 ===============
 This is the number of times the entire dataset is run through the model during training. If you use a small number, your model may not learn everything it needs to know (underfitting). If you use a large number, your model may start to memorise the data (overfitting), and it won't be good at making predictions about data it hasn't seen before. The optimal number of epochs is problem-specific, but a typical range is between 10 and 1000.
-===============
+
 
 3.2.3 Force CPU
 ===============
 This option forces the model to use the CPU instead of the GPU for computation. This can be useful if you are experiencing GPU limitations or don't want to use GPU acceleration.
-===============
+
 
 3.2.3 Python Exe
 ===============
 This is the path to the Python executable on your machine. The model will use this Python environment to run the script. Make sure you have all the necessary libraries installed - see above under "Installation" for more details.
-===============
+
 
 3.2.4 Output Settings
 ===============
 Here you need to specify the control rig and the joint CSV file containing the previously generated data. You will also need to specify the path where the trained model will be saved as a PyTorch (PT) file, so that you can make predictions later without having to train the model again.
-===============
+
 
 3.2.5 Model Training
 ===============
@@ -104,7 +104,7 @@ This is the process of feeding your data to the model and allowing it to learn f
 During training, the goal is to minimise this loss value. This means adjusting the model parameters (training data, learning rate, epochs) so that the difference between the predicted and actual values is as small as possible. A decrease in the loss value over epochs usually indicates that the model is learning and improving its predictions. However, if the loss stops decreasing or increases, it may indicate problems such as overfitting or that the model has reached its capacity for this data.
 
 You can find the current loss and epoch in the progress bar window that pops up during training.
-===============
+
 
 
 
@@ -117,17 +117,17 @@ Similarly to the train data, you first need to specify all the joints (only join
 These parameters must be the same as those used for the joint training data - this means that every joint used for the training data must also be added here, otherwise the prediction will not work!
 
 The names of the animated joints should be close to the names of the trained joints - this is important to get the same order of parameters as in the training data.
-===============
+
 
 3.3.2 Train Data and Trained Model
 ===============
 These are the file paths for the training data and the trained model respectively. The training data is the control rig and joint dataset that was used to train the model. The trained model is the result of the training process, a file that contains all the weights and biases that the model has learned. This file is used to load the model for prediction. You have specified these paths in the training process.
-===============
+
 
 3.3.3 Python Exe
 ===============
 This is the path to the Python executable on your machine. The model will use this Python environment to run the script. Make sure you have all the necessary libraries installed - see above under "Installation" for more details.
-===============
+
 
 3.3.4 Mapping Prediciton
 ===============
@@ -140,7 +140,7 @@ Note: The mapping of values to the control is limited to the namespace provided 
 Depending on the complexity of the rig, the predicted result can be quite far from the animated skeleton, or even static. This is a known limitation and bug.
 
 As a workaround, you can split the training into different parts to reduce the complexity of the data - so only learn and map the leg, arm or spine one at a time.
-===============
+
 
 
 
@@ -150,7 +150,7 @@ As a workaround, you can split the training into different parts to reduce the c
 - A large number of poses and/or many control rig and joint parameters require a lot of memory, sometimes too much for the workstation.
 - Mapping skeletal data back to rigs only works with the rig control names that were used in training - so it won't work if you want to map it to rigs with different namespaces to those used in training.
 - Training complex character rigs with many parameters can result in a static mapping - (almost) the same values for every frame.
-===============
+
 
 
 
