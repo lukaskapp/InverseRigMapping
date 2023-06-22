@@ -30,7 +30,7 @@ path = "{irm_path}
 if not path in sys.path:
     sys.path.append(path)
 
-import irm_ui as ui
+import system.irm_ui as ui
 reload(ui)
     '''
 

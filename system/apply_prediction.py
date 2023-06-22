@@ -18,18 +18,14 @@ import pathlib
 import os
 import subprocess
 
-import prep_anim_data
+import system.prep_anim_data as prep_anim_data
 
-
-def chunks(lst, n):
-    """split list into n-sized chunks"""
-    return [lst[i:i + n] for i in range(0, len(lst), n)]
 
 
 def get_predict_data(anim_path, model_path, rig_path, py_app):
-    py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
+    py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent
 
-    py_cmd = f"import sys; sys.path.append('{py_path}'); import gpr_predict; gpr_predict.predict_data('{anim_path}', '{model_path}', '{rig_path}')"
+    py_cmd = f"import sys; sys.path.append('{py_path}'); import system.gpr_predict as gpr_predict; gpr_predict.predict_data('{anim_path}', '{model_path}', '{rig_path}')"
     
     command = [py_app, "-u", "-c", py_cmd]
     # start subprocess; prevent output window
@@ -68,7 +64,7 @@ def map_data(anim_input_data, jnt_path, rig_path, model_path, py_app):
     get_predict_data(anim_path, model_path, rig_path, py_app)
 
     cmds.progressWindow(edit=True, progress=0, status=('Applying Prediction...'))
-    predict_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "predict_data/irm_predict_data.csv")    
+    predict_path = pathlib.PurePath(pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent, "predict_data/irm_predict_data.csv")    
     with open(predict_path, "r") as csvfile:
         reader = csv.reader(csvfile)
         header = next(reader, None) # skip header

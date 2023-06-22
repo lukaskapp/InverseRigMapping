@@ -114,7 +114,7 @@ class DataGenWidget(QtWidgets.QWidget):
 
         self.pyApp_label = QtWidgets.QLabel("Python Exe:")
         self.pyApp_line = QtWidgets.QLineEdit()
-        py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
+        py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent
         self.pyApp_line.setText(pathlib.PurePath(py_path, pathlib.Path("venv/Scripts/python.exe")).as_posix())
         self.pyApp_line.setReadOnly(True)
         self.pyApp_btn = QtWidgets.QPushButton("<")
@@ -127,14 +127,14 @@ class DataGenWidget(QtWidgets.QWidget):
         # output settings
         self.outRig_label = QtWidgets.QLabel("Control Rig File:")
         self.outRig_line = QtWidgets.QLineEdit()
-        self.outRig_line.setText(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig/irm_rig_data.csv").as_posix())
+        self.outRig_line.setText(pathlib.PurePath(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent, "training_data/rig/irm_rig_data.csv").as_posix())
         self.outRig_line.setReadOnly(True)
         self.outRig_btn = QtWidgets.QPushButton("<")
         self.outRig_btn.setFixedSize(20,20)
 
         self.outJnt_label = QtWidgets.QLabel("Joint File:")
         self.outJnt_line = QtWidgets.QLineEdit()
-        self.outJnt_line.setText(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt/irm_jnt_data.csv").as_posix())
+        self.outJnt_line.setText(pathlib.PurePath(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent, "training_data/jnt/irm_jnt_data.csv").as_posix())
         self.outJnt_line.setReadOnly(True)
         self.outJnt_btn = QtWidgets.QPushButton("<")
         self.outJnt_btn.setFixedSize(20,20)
@@ -144,7 +144,7 @@ class DataGenWidget(QtWidgets.QWidget):
 
         self.outModel_label = QtWidgets.QLabel("Model File:")
         self.outModel_line = QtWidgets.QLineEdit()
-        self.outModel_line.setText(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model/trained_model.pt").as_posix())
+        self.outModel_line.setText(pathlib.PurePath(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent, "trained_model/trained_model.pt").as_posix())
         self.outModel_line.setReadOnly(True)
         self.outModel_btn = QtWidgets.QPushButton("<")
         self.outModel_btn.setFixedSize(20,20)
@@ -432,9 +432,8 @@ class DataGenWidget(QtWidgets.QWidget):
         if not uiUtils.check_train_data(rig_input_data, "control rig") or not uiUtils.check_train_data(jnt_input_data, "joint"):
             return
 
-        import generate_train_data
-        reload(generate_train_data)
-        generate_train_data.generate_data(rig_input_data=rig_input_data, jnt_input_data=jnt_input_data,
+        import system.generate_train_data as gen_train_data
+        gen_train_data.generate_data(rig_input_data=rig_input_data, jnt_input_data=jnt_input_data,
                                         rig_out=rig_path, jnt_out=jnt_path, train_poses=train_poses)
 
 
@@ -451,8 +450,7 @@ class DataGenWidget(QtWidgets.QWidget):
         epochs = int(self.epoch_line.text())
         force_cpu = self.forceCPU_checkBox.isChecked()
 
-        import train_model
-        reload(train_model)
+        import system.train_model as train_model
         train_model.train_model(py_app=py_app, rig_path=rig_path, jnt_path=jnt_path, model_path=model_path,
                                 lr=learning_rate, epochs=epochs, force_cpu=force_cpu)
 
@@ -495,14 +493,14 @@ class PredictWidget(QtWidgets.QWidget):
 
         self.outRig_label = QtWidgets.QLabel("Control Rig Data:")
         self.outRig_line = QtWidgets.QLineEdit()
-        self.outRig_line.setText(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig/irm_rig_data.csv").as_posix())
+        self.outRig_line.setText(pathlib.PurePath(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent, "training_data/rig/irm_rig_data.csv").as_posix())
         self.outRig_line.setReadOnly(True)
         self.outRig_btn = QtWidgets.QPushButton("<")
         self.outRig_btn.setFixedSize(20,20)
 
         self.outJnt_label = QtWidgets.QLabel("Joint Data:")
         self.outJnt_line = QtWidgets.QLineEdit()
-        self.outJnt_line.setText(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt/irm_jnt_data.csv").as_posix())
+        self.outJnt_line.setText(pathlib.PurePath(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent, "training_data/jnt/irm_jnt_data.csv").as_posix())
         self.outJnt_line.setReadOnly(True)
         self.outJnt_btn = QtWidgets.QPushButton("<")
         self.outJnt_btn.setFixedSize(20,20)
@@ -512,14 +510,14 @@ class PredictWidget(QtWidgets.QWidget):
 
         self.outModel_label = QtWidgets.QLabel("Trained Model:")
         self.outModel_line = QtWidgets.QLineEdit()
-        self.outModel_line.setText(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model/trained_model.pt").as_posix())
+        self.outModel_line.setText(pathlib.PurePath(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent, "trained_model/trained_model.pt").as_posix())
         self.outModel_line.setReadOnly(True)
         self.outModel_btn = QtWidgets.QPushButton("<")
         self.outModel_btn.setFixedSize(20,20)
 
         self.pyApp_label = QtWidgets.QLabel("Python Exe:")
         self.pyApp_line = QtWidgets.QLineEdit()
-        py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
+        py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent
         self.pyApp_line.setText(pathlib.PurePath(py_path, pathlib.Path("venv/Scripts/python.exe")).as_posix())
         self.pyApp_line.setReadOnly(True)
         self.pyApp_btn = QtWidgets.QPushButton("<")
@@ -668,8 +666,7 @@ class PredictWidget(QtWidgets.QWidget):
         if not uiUtils.check_train_data(anim_input_data, "animation"):
             return
 
-        import apply_prediction
-        reload(apply_prediction)
+        import system.apply_prediction as apply_prediction
         apply_prediction.map_data(anim_input_data, jnt_path, rig_path, model_path, py_app)
 
 

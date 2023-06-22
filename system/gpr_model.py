@@ -93,13 +93,6 @@ def build_data_tensor(dataset_path, min_val=None, max_val=None, mean_val=None):
 
 
 
-#rig_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig/irm_rig_data.csv").as_posix()
-#jnt_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/jnt/irm_jnt_data.csv").as_posix()
-#model_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model/trained_model.pt").as_posix()
-#lr = 0.1
-#epochs = 100
-#force_cpu = False
-
 def train_model(rig_path, jnt_path, model_path, lr, epochs, force_cpu):
     ## enable GPU/CUDA if available
     if torch.cuda.is_available() and not force_cpu: 

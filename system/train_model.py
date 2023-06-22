@@ -17,8 +17,8 @@ import maya.cmds as cmds
 
 
 def train_model(py_app, rig_path, jnt_path, model_path, lr=0.01, epochs=100, force_cpu=False):
-    py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__))))
-    py_cmd = f"import sys; sys.path.append('{py_path}'); import gpr_model as gpr; gpr.train_model('{rig_path}', '{jnt_path}', '{model_path}', {lr}, {epochs}, {force_cpu})"
+    py_path = pathlib.Path(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent
+    py_cmd = f"import sys; sys.path.append('{py_path}'); import system.gpr_model as gpr; gpr.train_model('{rig_path}', '{jnt_path}', '{model_path}', {lr}, {epochs}, {force_cpu})"
     command = [py_app, "-u", "-c", py_cmd]
 
     # Initialize the progress window

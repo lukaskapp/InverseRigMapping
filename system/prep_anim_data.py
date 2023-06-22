@@ -68,7 +68,7 @@ def prep_data(anim_input_data, jnt_path):
     cmds.currentTime(current_frame)
     
     # save anim data as json
-    anim_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data/irm_anim_data.csv")
+    anim_path = pathlib.PurePath(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent, "anim_data/irm_anim_data.csv")
     with open(anim_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(anim_header)

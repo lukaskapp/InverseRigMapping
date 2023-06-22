@@ -17,7 +17,7 @@ import csv
 import pathlib
 import os
 
-import gpr_model as gpr
+import system.gpr_model as gpr
 import utils.pytorch as torchUtils
 
 
@@ -123,7 +123,7 @@ def predict_data(anim_path, model_path, rig_path):
 
     print("PROGRESS 90")
     # save anim data for Maya
-    predict_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "predict_data/irm_predict_data.csv")
+    predict_path = pathlib.PurePath(pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__)))).parent, "predict_data/irm_predict_data.csv")
     predict_header = train_rig_df.columns.values # use header of rig train data for predict header
 
     with open(predict_path, "w") as f:
