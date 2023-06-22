@@ -1,19 +1,24 @@
+"""
+-----------------------------------------------------------------------------
+This file has been developed within the scope of the
+Technical Director course at Filmakademie Baden-Wuerttemberg.
+http://technicaldirector.de
+
+Written by Lukas Kapp
+Copyright (c) 2023 Animationsinstitut of Filmakademie Baden-Wuerttemberg
+-----------------------------------------------------------------------------
+"""
+
 import maya.cmds as cmds
 import pymel.core as pm
 import maya.api.OpenMaya as om
-import math
 import os
 import random
 import csv
-import pathlib
-from imp import reload
 
 import utils.maya as mUtils
-reload(mUtils)
 import utils.data_gen as genUtils
-reload(genUtils)
 import utils.ui as uiUtils
-reload(uiUtils)
 
 def generate_data(rig_input_data, jnt_input_data, rig_out, jnt_out, train_poses):
     # filter selection into joints and controls

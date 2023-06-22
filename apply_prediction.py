@@ -1,15 +1,24 @@
+"""
+-----------------------------------------------------------------------------
+This file has been developed within the scope of the
+Technical Director course at Filmakademie Baden-Wuerttemberg.
+http://technicaldirector.de
+
+Written by Lukas Kapp
+Copyright (c) 2023 Animationsinstitut of Filmakademie Baden-Wuerttemberg
+-----------------------------------------------------------------------------
+"""
+
 import maya.cmds as cmds
 import pymel.core as pm
 import maya.api.OpenMaya as om
 import math
 import csv
-from importlib import reload
 import pathlib
 import os
 import subprocess
 
 import prep_anim_data
-reload(prep_anim_data)
 
 
 def chunks(lst, n):

@@ -1,23 +1,26 @@
-import math
+"""
+-----------------------------------------------------------------------------
+This file has been developed within the scope of the
+Technical Director course at Filmakademie Baden-Wuerttemberg.
+http://technicaldirector.de
+
+Written by Lukas Kapp
+Copyright (c) 2023 Animationsinstitut of Filmakademie Baden-Wuerttemberg
+-----------------------------------------------------------------------------
+"""
+
 import torch
 import gpytorch
 import numpy as np
 import pandas as pd
 import csv
-from importlib import reload
 import pathlib
 import os
 
 import gpr_model as gpr
-reload(gpr)
-
 import utils.pytorch as torchUtils
-reload(torchUtils)
 
 
-#anim_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "anim_data", "irm_anim_data.csv").as_posix()
-#model_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "trained_model/trained_model.pt").as_posix()
-#rig_path = pathlib.PurePath(os.path.normpath(os.path.dirname(os.path.realpath(__file__))), "training_data/rig/irm_rig_data.csv").as_posix()
 def predict_data(anim_path, model_path, rig_path):
     # load trained model
     state_dict = torch.load(model_path)

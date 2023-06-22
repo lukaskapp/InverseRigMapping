@@ -1,13 +1,22 @@
+"""
+-----------------------------------------------------------------------------
+This file has been developed within the scope of the
+Technical Director course at Filmakademie Baden-Wuerttemberg.
+http://technicaldirector.de
+
+Written by Lukas Kapp
+Copyright (c) 2023 Animationsinstitut of Filmakademie Baden-Wuerttemberg
+-----------------------------------------------------------------------------
+"""
+
 import torch
 import gpytorch
 import numpy as np
 import pandas as pd
-from importlib import reload
 import pathlib
 import os
 
 import utils.pytorch as torchUtils
-reload(torchUtils)
 
 class BatchIndependentMultitaskGPModel(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, force_cpu, train_x_dimension, train_y_dimension,

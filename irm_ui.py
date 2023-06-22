@@ -1,12 +1,21 @@
+"""
+-----------------------------------------------------------------------------
+This file has been developed within the scope of the
+Technical Director course at Filmakademie Baden-Wuerttemberg.
+http://technicaldirector.de
+
+Written by Lukas Kapp
+Copyright (c) 2023 Animationsinstitut of Filmakademie Baden-Wuerttemberg
+-----------------------------------------------------------------------------
+"""
+
 from PySide2 import QtCore, QtWidgets, QtGui
 from functools import partial
 import json
 import pathlib
 import os
-from imp import reload
 
 import utils.ui as uiUtils
-reload(uiUtils)
 
 
 
