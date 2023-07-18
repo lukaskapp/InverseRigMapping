@@ -1,4 +1,14 @@
 @echo off
+goto :start
+-----------------------------------------------------------------------------
+This file has been developed within the scope of the
+Technical Director course at Filmakademie Baden-Wuerttemberg.
+http://technicaldirector.de
+
+Written by Lukas Kapp
+Copyright (c) 2023 Animationsinstitut of Filmakademie Baden-Wuerttemberg
+-----------------------------------------------------------------------------
+:start
 
 REM Get the directory of the current batch script
 set "SCRIPT_DIR=%~dp0"
