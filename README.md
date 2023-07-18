@@ -140,5 +140,15 @@ As a workaround, you can split the training into different parts to reduce the c
 6. Dmitry Kostiaev. 2020. "Better rotation representations for accurate pose estimation". Retrieved June 21, 2023, from https://towardsdatascience.com/better-rotation-representations-for-accurate-pose-estimation-e890a7e1317f
 7. Eric Perim, Wessel Bruinsma, and Will Tebbutt. 2021. "Gaussian Processes: from one to many outputs". Retrieved June 21, 2023, from https://invenia.github.io/blog/2021/02/19/OILMM-pt1/#:~:text=Then%2C%20a%20multi%2Doutput%20Gaussian,on%20an%20extended%20input%20space
 
-## 6. About
+## 6. Dependencies
+All dependencies are linked dynamically.
+- Maya SDK (Maya Commands / OpenMaya) - Autodesk EULA: https://download.autodesk.com/us/FY17/Suites/LSA/en-us/lsa.html
+- PyMEL - BSD license: https://github.com/LumaPictures/pymel/blob/master/LICENSE
+- PyTorch - BSD license: https://github.com/pytorch/pytorch/blob/main/LICENSE
+- GPyTorch - MIT license: https://github.com/cornellius-gp/gpytorch/blob/master/LICENSE
+- NumPy - BSD 3-clause license: https://github.com/numpy/numpy/blob/main/LICENSE.txt
+- Pandas - BSD 3-clause license: https://github.com/pandas-dev/pandas/blob/main/LICENSE
+- PySide2 - LGPLv3 license: https://doc.qt.io/qt-6/lgpl.html
+
+## 7. About
 This Tool has been developed within the scope of the Technical Director course at Filmakademie Baden-Wuerttemberg. http://technicaldirector.de. Written by Lukas Kapp. Copyright © 2023 Animationsinstitut of Filmakademie Baden-Wuerttemberg.
